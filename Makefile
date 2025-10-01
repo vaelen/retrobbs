@@ -19,14 +19,29 @@ UTIL_BIN_DIR = $(BIN_DIR)/utils
 
 # Source files
 MAIN_SRC = $(SRC_DIR)/retrobbs.pas
-TEST_SRC = $(TEST_DIR)/ansitest.pas
+ANSI_TEST_SRC = $(TEST_DIR)/ansitest.pas
+HASH_TEST_SRC = $(TEST_DIR)/hashtest.pas
 DEMO_SRC = $(DEMO_DIR)/ansidemo.pas
 ANSI_UNIT = $(SRC_DIR)/ansi.pas
+HASH_UNIT = $(SRC_DIR)/hash.pas
+
+# Utility source files
+CRC16_SRC = $(UTIL_DIR)/crc16.pas
+CRC16X_SRC = $(UTIL_DIR)/crc16x.pas
+CRC32_SRC = $(UTIL_DIR)/crc32.pas
+SHA1_SRC = $(UTIL_DIR)/sha1.pas
 
 # Output binaries
 OUTPUT = $(BIN_DIR)/retrobbs
-TEST_OUTPUT = $(TEST_BIN_DIR)/ansitest
+ANSI_TEST_OUTPUT = $(TEST_BIN_DIR)/ansitest
+HASH_TEST_OUTPUT = $(TEST_BIN_DIR)/hashtest
 DEMO_OUTPUT = $(DEMO_BIN_DIR)/ansidemo
+
+# Utility binaries
+CRC16_OUTPUT = $(UTIL_BIN_DIR)/crc16
+CRC16X_OUTPUT = $(UTIL_BIN_DIR)/crc16x
+CRC32_OUTPUT = $(UTIL_BIN_DIR)/crc32
+SHA1_OUTPUT = $(UTIL_BIN_DIR)/sha1
 
 # Default target
 all: $(OUTPUT)
@@ -52,22 +67,41 @@ $(OUTPUT): $(MAIN_SRC) $(ANSI_UNIT) | $(BIN_DIR)
 	$(FPC) $(FPCFLAGS) -o$(OUTPUT) $(MAIN_SRC)
 
 # Build the ANSI test program
-$(TEST_OUTPUT): $(TEST_SRC) $(ANSI_UNIT) | $(TEST_BIN_DIR)
-	$(FPC) $(FPCFLAGS) -o$(TEST_OUTPUT) $(TEST_SRC)
+$(ANSI_TEST_OUTPUT): $(ANSI_TEST_SRC) $(ANSI_UNIT) | $(TEST_BIN_DIR)
+	$(FPC) $(FPCFLAGS) -o$(ANSI_TEST_OUTPUT) $(ANSI_TEST_SRC)
+
+# Build the Hash test program
+$(HASH_TEST_OUTPUT): $(HASH_TEST_SRC) $(HASH_UNIT) | $(TEST_BIN_DIR)
+	$(FPC) $(FPCFLAGS) -o$(HASH_TEST_OUTPUT) $(HASH_TEST_SRC)
 
 # Build the ANSI demo program
 $(DEMO_OUTPUT): $(DEMO_SRC) $(ANSI_UNIT) | $(DEMO_BIN_DIR)
 	$(FPC) $(FPCFLAGS) -o$(DEMO_OUTPUT) $(DEMO_SRC)
 
+# Build CRC16 utility
+$(CRC16_OUTPUT): $(CRC16_SRC) $(HASH_UNIT) | $(UTIL_BIN_DIR)
+	$(FPC) $(FPCFLAGS) -o$(CRC16_OUTPUT) $(CRC16_SRC)
+
+# Build CRC16X utility
+$(CRC16X_OUTPUT): $(CRC16X_SRC) $(HASH_UNIT) | $(UTIL_BIN_DIR)
+	$(FPC) $(FPCFLAGS) -o$(CRC16X_OUTPUT) $(CRC16X_SRC)
+
+# Build CRC32 utility
+$(CRC32_OUTPUT): $(CRC32_SRC) $(HASH_UNIT) | $(UTIL_BIN_DIR)
+	$(FPC) $(FPCFLAGS) -o$(CRC32_OUTPUT) $(CRC32_SRC)
+
+# Build SHA1 utility
+$(SHA1_OUTPUT): $(SHA1_SRC) $(HASH_UNIT) | $(UTIL_BIN_DIR)
+	$(FPC) $(FPCFLAGS) -o$(SHA1_OUTPUT) $(SHA1_SRC)
+
 # Build test programs
-test: $(TEST_OUTPUT)
+test: $(ANSI_TEST_OUTPUT) $(HASH_TEST_OUTPUT)
 
 # Build demo programs
 demo: $(DEMO_OUTPUT)
 
-# Build utility programs (empty for now, add targets as utils are created)
-utils:
-	@echo "No utility programs defined yet"
+# Build utility programs
+utils: $(CRC16_OUTPUT) $(CRC16X_OUTPUT) $(CRC32_OUTPUT) $(SHA1_OUTPUT)
 
 # Clean build artifacts
 clean:

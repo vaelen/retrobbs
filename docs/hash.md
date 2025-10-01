@@ -6,11 +6,11 @@ This library implements CRC and hashing functions needed for other parts of the 
 
 | Done  | Function    | Algorithm     | Notes                                          |
 | ----- | ----------- | ------------- | -----------------------|
-|  [ ]  | CRC16       | CRC-16        | CRC-16/KERMIT (CCITT)  |
-|  [ ]  | CRC16X      | CRC-16        | CRC-16/XMODEM (ZMODEM) |
-|  [ ]  | CRC32       | CRC-32        | CRC-32/CHKSUM          |
+|  [x]  | CRC16       | CRC-16        | CRC-16/KERMIT (CCITT)  |
+|  [x]  | CRC16X      | CRC-16        | CRC-16/XMODEM (ZMODEM) |
+|  [x]  | CRC32       | CRC-32        | CRC-32/CKSUM (POSIX)   |
 |  [ ]  | MD5         | MD5           |                        |
-|  [ ]  | SHA1        | SHA-1         |                        |
+|  [x]  | SHA1        | SHA-1         |                        |
 
 Each of the supported alogrithms has 4 functions. 
 For example, the CRC16 algorithm includes the following methods:
@@ -24,22 +24,24 @@ The first method is a one-shot method designed to return a value for a
 given array of bytes. The other three methods are meant to work in tandem
 to allow for data of any size to be processed.
 
-Each of the supported algorithms also has a utility program with the same 
-name as the one-shot function that can be run from the command line. Passing
-a command line parameter causes the utility program to apply the hash to the
-contents of the referenced file, otherwise it applies the hash to the contents
-of standard in. Either way, it prints the final value as a hexidecimal number.
+Each of the supported algorithms also has a utility program with the same
+name as the one-shot function that can be run from the command line. The
+utility program takes a filename as a parameter and applies the hash to the
+contents of the file, printing the final value as a hexadecimal number.
 
 ## CRC Tables
 
 ### CRC-16/KERMIT (CITTT)
 
-- Check:  0x2189
-- Poly:   0x1021
-- Init:   0x0000
-- XorOut: 0x0000
-- RefIn:  true
-- RefOut: true
+| Input                                        | Output |
+| -------------------------------------------- | ------ |
+| 54 68 69 73 20 69 73 20 61 20 74 65 73 74 0a | FADF   |
+
+- Check:   0x2189
+- Poly:    0x1021
+- Init:    0x0000
+- XorOut:  0x0000
+- Reflect: true
 
 ```
 0x0000, 0x1189, 0x2312, 0x329B, 0x4624, 0x57AD, 0x6536, 0x74BF,
@@ -78,12 +80,15 @@ of standard in. Either way, it prints the final value as a hexidecimal number.
 
 ### CRC-16/XMODEM (ZMODEM)
 
-- Check:  0x31C3
-- Poly:   0x1021
-- Init:   0x0000
-- XorOut: 0x0000
-- RefIn:  false
-- RefOut: false
+| Input                                        | Output |
+| -------------------------------------------- | ------ |
+| 54 68 69 73 20 69 73 20 61 20 74 65 73 74 0a | FADF   |
+
+- Check:   0x31C3
+- Poly:    0x1021
+- Init:    0x0000
+- XorOut:  0x0000
+- Reflect: false
 
 ```
 0x0000, 0x1021, 0x2042, 0x3063, 0x4084, 0x50A5, 0x60C6, 0x70E7,
@@ -122,12 +127,15 @@ of standard in. Either way, it prints the final value as a hexidecimal number.
 
 ### CRC-32/CKSUM (POSIX)
 
-- Check:  0x31C3
-- Poly:   0x1021
-- Init:   0x0000
-- XorOut: 0x0000
-- RefIn:  false
-- RefOut: false
+| Input                                        | Output   |
+| -------------------------------------------- | -------- |
+| 54 68 69 73 20 69 73 20 61 20 74 65 73 74 0a | F2160169 |
+
+- Check:   0x31C3
+- Poly:    0x1021
+- Init:    0x0000
+- XorOut:  0x0000
+- Reflect: false
 
 ```
 0x00000000, 0x04C11DB7, 0x09823B6E, 0x0D4326D9, 0x130476DC, 0x17C56B6B, 0x1A864DB2, 0x1E475005,
