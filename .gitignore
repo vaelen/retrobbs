@@ -1,0 +1,33 @@
+# Compiled binaries
+bin/
+*.exe
+*.com
+
+# Free Pascal Compiler artifacts
+*.o
+*.ppu
+*.a
+*.so
+*.dylib
+
+# Pascal unit backup files
+*.bak
+*.~pas
+*.~pp
+
+# IDE/Editor files
+*.lps
+*.compiled
+*.cfg
+*.res
+
+# OS files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Build artifacts
+link.res
+ppas.sh

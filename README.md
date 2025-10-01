@@ -41,6 +41,8 @@ RetroBBS is a BBS software package targeted at retro computing systems from the 
 - [ ] DOS 3.0+ - Using TurboPascal
 - [ ] Windows 3.1 - Using TurboPascal
 
+To build on Linux, run `make`.
+
 ## Design Features
 
 - [x] Written in Pascal for portibility.
@@ -51,6 +53,16 @@ RetroBBS is a BBS software package targeted at retro computing systems from the 
 - [ ] Files use 8.3 filenames for DOS support
 - [ ] Single-threaded application
 - [ ] Avoids Object Pascal syntax for maximum portability
+
+## Project Layout
+
+- docs/    - Documentation
+- src/     - Source code
+- tests/   - Source code and supporting files for unit tests
+- bin/     - Binaries
+- plan/    - Planning documents
+- tasks/   - Task definition documents
+- Makefile - For building on Linux, UNIX, etc.
 
 ## Additional Documentation
 
