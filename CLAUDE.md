@@ -72,10 +72,39 @@ When implementing FidoNet or messaging features, consult the relevant FTS/FSC/FR
 
 ## Project Layout
 
-- [docs/](docs/) - Documentation
-- src/ - Source code
-- bin/ - Binaries
-- Makefile - For building on Linux, UNIX, etc.
+```
+retrobbs/
+├── src/              - Source code
+│   ├── ansi.pas      - ANSI terminal library unit
+│   ├── retrobbs.pas  - Main program
+│   ├── demos/        - Demo programs
+│   ├── tests/        - Test programs
+│   └── utils/        - Utility programs
+├── bin/              - Compiled binaries
+│   ├── retrobbs      - Main program binary
+│   ├── demos/        - Compiled demo programs
+│   ├── tests/        - Compiled test programs
+│   └── utils/        - Compiled utility programs
+├── docs/             - Documentation
+│   ├── ansi.md       - ANSI library documentation
+│   ├── ftn/          - FidoNet technical standards
+│   └── rfc/          - RFC specifications
+├── Makefile          - Build system
+├── CLAUDE.md         - Claude Code guidance
+└── README.md         - Project overview
+```
+
+### Build Commands
+
+- `make` - Build main program → `bin/retrobbs`
+- `make demo` - Build demo programs → `bin/demos/*`
+- `make test` - Build test programs → `bin/tests/*`
+- `make utils` - Build utility programs → `bin/utils/*`
+- `make run` - Run main program
+- `make run-demo` - Run demo program
+- `make run-test` - Run test program
+- `make clean` - Remove build artifacts
+- `make distclean` - Remove all binaries
 
 ## Development Status
 

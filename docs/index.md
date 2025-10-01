@@ -5,7 +5,8 @@ RetroBBS is built as a set of modular units. Those units are documented in this 
 ## Unit Documentation
 
 Units:
-  - ANSI - Handles ANSI escape sequences
+  - [ANSI](ansi.md) - Handles ANSI escape sequences
+  - [Hash](hash.md) - CRC and Hashing algorithms
   - Users - Code for managing users and handling login
   - Mail - Handles local mail
   - Boards - Handles local message boards
