@@ -21,9 +21,13 @@ UTIL_BIN_DIR = $(BIN_DIR)/utils
 MAIN_SRC = $(SRC_DIR)/retrobbs.pas
 ANSI_TEST_SRC = $(TEST_DIR)/ansitest.pas
 HASH_TEST_SRC = $(TEST_DIR)/hashtest.pas
+TYPE_TEST_SRC = $(TEST_DIR)/typetest.pas
+USER_TEST_SRC = $(TEST_DIR)/usertest.pas
 DEMO_SRC = $(DEMO_DIR)/ansidemo.pas
 ANSI_UNIT = $(SRC_DIR)/ansi.pas
 HASH_UNIT = $(SRC_DIR)/hash.pas
+BBSTYPES_UNIT = $(SRC_DIR)/bbstypes.pas
+USER_UNIT = $(SRC_DIR)/user.pas
 
 # Utility source files
 CRC16_SRC = $(UTIL_DIR)/crc16.pas
@@ -35,6 +39,8 @@ SHA1_SRC = $(UTIL_DIR)/sha1.pas
 OUTPUT = $(BIN_DIR)/retrobbs
 ANSI_TEST_OUTPUT = $(TEST_BIN_DIR)/ansitest
 HASH_TEST_OUTPUT = $(TEST_BIN_DIR)/hashtest
+TYPE_TEST_OUTPUT = $(TEST_BIN_DIR)/typetest
+USER_TEST_OUTPUT = $(TEST_BIN_DIR)/usertest
 DEMO_OUTPUT = $(DEMO_BIN_DIR)/ansidemo
 
 # Utility binaries
@@ -74,6 +80,14 @@ $(ANSI_TEST_OUTPUT): $(ANSI_TEST_SRC) $(ANSI_UNIT) | $(TEST_BIN_DIR)
 $(HASH_TEST_OUTPUT): $(HASH_TEST_SRC) $(HASH_UNIT) | $(TEST_BIN_DIR)
 	$(FPC) $(FPCFLAGS) -o$(HASH_TEST_OUTPUT) $(HASH_TEST_SRC)
 
+# Build the BBSTypes test program
+$(TYPE_TEST_OUTPUT): $(TYPE_TEST_SRC) $(BBSTYPES_UNIT) | $(TEST_BIN_DIR)
+	$(FPC) $(FPCFLAGS) -o$(TYPE_TEST_OUTPUT) $(TYPE_TEST_SRC)
+
+# Build the User test program
+$(USER_TEST_OUTPUT): $(USER_TEST_SRC) $(USER_UNIT) $(BBSTYPES_UNIT) $(HASH_UNIT) | $(TEST_BIN_DIR)
+	$(FPC) $(FPCFLAGS) -o$(USER_TEST_OUTPUT) $(USER_TEST_SRC)
+
 # Build the ANSI demo program
 $(DEMO_OUTPUT): $(DEMO_SRC) $(ANSI_UNIT) | $(DEMO_BIN_DIR)
 	$(FPC) $(FPCFLAGS) -o$(DEMO_OUTPUT) $(DEMO_SRC)
@@ -95,7 +109,7 @@ $(SHA1_OUTPUT): $(SHA1_SRC) $(HASH_UNIT) | $(UTIL_BIN_DIR)
 	$(FPC) $(FPCFLAGS) -o$(SHA1_OUTPUT) $(SHA1_SRC)
 
 # Build test programs
-test: $(ANSI_TEST_OUTPUT) $(HASH_TEST_OUTPUT)
+test: $(ANSI_TEST_OUTPUT) $(HASH_TEST_OUTPUT) $(TYPE_TEST_OUTPUT) $(USER_TEST_OUTPUT)
 
 # Build demo programs
 demo: $(DEMO_OUTPUT)

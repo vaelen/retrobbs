@@ -12,9 +12,6 @@ unit Hash;
 
 interface
 
-type
-  TByteArray = array of Byte;
-
 { CRC-16/KERMIT (CCITT) Functions }
 function CRC16(const data; len: Integer): Word;
 function CRC16Start(var crc: Word; const data; len: Integer): Word;

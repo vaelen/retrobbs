@@ -36,10 +36,10 @@ RetroBBS is a BBS software package targeted at retro computing systems from the 
 
 ## Build Targets
 
-- [x] Linux / UNIX / MacOS 10 - Using the Free Pascal compiler
-- [ ] Mac OS 7+ - Using MacPascal
-- [ ] DOS 3.0+ - Using TurboPascal
-- [ ] Windows 3.1 - Using TurboPascal
+- [x] Linux / UNIX / MacOS 10 - Using Free Pascal
+- [ ] Mac OS 7+ - Using Think Pascal 4.5
+- [ ] DOS 3.0+ - Using Turbo Pascal 7.0
+- [ ] Windows 3.1 - Using Turbo Pascal 7.0
 
 To build on Linux, run `make`.
 
