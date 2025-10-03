@@ -87,7 +87,7 @@ end;
 procedure TestTypeDefinitions;
 var
   s255: Str255;
-  s64: Str64;
+  s64: Str63;
   hash: SHA1Hash;
   uid: TUserID;
   ts: TBBSTimestamp;
@@ -105,7 +105,7 @@ begin
     Inc(failed);
   end;
 
-  Write('Type Str64 assignment: ');
+  Write('Type Str63 assignment: ');
   s64 := 'Short string';
   if Length(s64) = 12 then
   begin

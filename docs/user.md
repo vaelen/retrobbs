@@ -9,11 +9,11 @@ The `User` record contains the following fields:
 | Name     | Type       | Description            |
 | -------- | ---------- | ---------------------- |
 | ID       | UserID     | Unique User Identifier |
-| Name     | Str64      | Login Name or "Handle" |
+| Name     | Str63      | Login Name or "Handle" |
 | Password | SHA1Hash   | SHA-1 Hash of Password |
-| FullName | Str64      | Real Name              |
-| Email    | Str64      | Email Address          |
-| Location | Str64      | Physical Location      |
+| FullName | Str63      | Real Name              |
+| Email    | Str63      | Email Address          |
+| Location | Str63      | Physical Location      |
 | Access   | Word       | Access Control Bitmask |
 
 **Note:** The Access Control Bitmask provides 16 separate ACL "groups" that the user can belong to. These are, in turn, used elsewhere to control access to specific areas. The most significant bit is the Sysop bit.
@@ -27,9 +27,9 @@ The User file is called `users.dat` and is used to store the list of all users. 
 ## User Related Functions
 
 - FindUserByID(ID: UserID) : User
-- FindUserByName(Name: Str64) : User
-- AuthenticateUser(Name: Str64, Password: SHA1Hash) : Boolean
-- SetUserPassword(ID: UserID, Password: Str64) : Boolean
+- FindUserByName(Name: Str63) : User
+- AuthenticateUser(Name: Str63, Password: SHA1Hash) : Boolean
+- SetUserPassword(ID: UserID, Password: Str63) : Boolean
 - SaveUser(u: User)
 
 **TODO: Document other user related functions here**

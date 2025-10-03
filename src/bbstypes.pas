@@ -14,8 +14,9 @@ interface
 
 { Custom String Types }
 type
-  Str255 = String[255];  { Used for longer strings }
-  Str64 = String[64];    { Used for shorter strings }
+  Str255 = String[255];  { Used for long strings }
+  Str63 = String[63];    { Used for medium strings }
+  Str31 = String[31];    { Used for short strings }
   SHA1Hash = String[41]; { Hex string of a SHA-1 hash (40 chars + null) }
 
 { User and System Types }

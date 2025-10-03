@@ -28,16 +28,16 @@ const
 type
   TUser = record
     ID: TUserID;         { Unique User Identifier }
-    Name: Str64;         { Login Name or "Handle" }
+    Name: Str63;         { Login Name or "Handle" }
     Password: SHA1Hash;  { SHA-1 Hash of Password }
-    FullName: Str64;     { Real Name }
-    Email: Str64;        { Email Address }
-    Location: Str64;     { Physical Location }
+    FullName: Str63;     { Real Name }
+    Email: Str63;        { Email Address }
+    Location: Str63;     { Physical Location }
     Access: Word;        { Access Control Bitmask }
   end;
 
 var
-  Salt: Str64;           { Password salt string }
+  Salt: Str63;           { Password salt string }
 
 { User Lookup Functions }
 
@@ -45,25 +45,25 @@ var
 function FindUserByID(id: TUserID; var user: TUser): Boolean;
 
 { Find user by name (case insensitive), returns true if found }
-function FindUserByName(name: Str64; var user: TUser): Boolean;
+function FindUserByName(name: Str63; var user: TUser): Boolean;
 
 { User Management Functions }
 
 { Add a new user, returns the new user ID (0 on failure) }
-function AddUser(name: Str64; password: Str64; fullName: Str64;
-                 email: Str64; location: Str64): TUserID;
+function AddUser(name: Str63; password: Str63; fullName: Str63;
+                 email: Str63; location: Str63): TUserID;
 
 { Update an existing user by ID }
 function UpdateUserByID(id: TUserID; user: TUser): Boolean;
 
 { Update an existing user by name }
-function UpdateUserByName(name: Str64; user: TUser): Boolean;
+function UpdateUserByName(name: Str63; user: TUser): Boolean;
 
 { Delete a user by ID }
 function DeleteUserByID(id: TUserID): Boolean;
 
 { Delete a user by name }
-function DeleteUserByName(name: Str64): Boolean;
+function DeleteUserByName(name: Str63): Boolean;
 
 { Get the next available user ID }
 function GetNextUserID: TUserID;
@@ -71,16 +71,16 @@ function GetNextUserID: TUserID;
 { Authentication Functions }
 
 { Authenticate user with name and password, returns true if valid }
-function AuthenticateUser(name: Str64; password: Str64): Boolean;
+function AuthenticateUser(name: Str63; password: Str63): Boolean;
 
 { Set user password by ID (re-hashes with salt) }
-function SetUserPasswordByID(id: TUserID; password: Str64): Boolean;
+function SetUserPasswordByID(id: TUserID; password: Str63): Boolean;
 
 { Set user password by name (re-hashes with salt) }
-function SetUserPasswordByName(name: Str64; password: Str64): Boolean;
+function SetUserPasswordByName(name: Str63; password: Str63): Boolean;
 
 { Hash password with salt }
-function HashPassword(password: Str64): SHA1Hash;
+function HashPassword(password: Str63): SHA1Hash;
 
 { Access Control Functions }
 
@@ -98,9 +98,9 @@ uses
 { Helper function to parse a tab-delimited line into a user record }
 function ParseUserLine(line: Str255; var user: TUser): Boolean;
 var
-  parts: array[0..6] of Str64;
+  parts: array[0..6] of Str63;
   partCount: Integer;
-  currentPart: Str64;
+  currentPart: Str63;
   ch: Char;
   i: Integer;
 begin
@@ -199,7 +199,7 @@ begin
   Close(f);
 end;
 
-function FindUserByName(name: Str64; var user: TUser): Boolean;
+function FindUserByName(name: Str63; var user: TUser): Boolean;
 var
   f: Text;
   line: Str255;
@@ -269,8 +269,8 @@ begin
   GetNextUserID := maxID + 1;
 end;
 
-function AddUser(name: Str64; password: Str64; fullName: Str64;
-                 email: Str64; location: Str64): TUserID;
+function AddUser(name: Str63; password: Str63; fullName: Str63;
+                 email: Str63; location: Str63): TUserID;
 var
   f: Text;
   user: TUser;
@@ -378,7 +378,7 @@ begin
   end;
 end;
 
-function UpdateUserByName(name: Str64; user: TUser): Boolean;
+function UpdateUserByName(name: Str63; user: TUser): Boolean;
 var
   oldFile, newFile: Text;
   line: Str255;
@@ -507,7 +507,7 @@ begin
   end;
 end;
 
-function DeleteUserByName(name: Str64): Boolean;
+function DeleteUserByName(name: Str63): Boolean;
 var
   oldFile, newFile: Text;
   line: Str255;
@@ -572,7 +572,7 @@ end;
 
 { Authentication Functions }
 
-function HashPassword(password: Str64): SHA1Hash;
+function HashPassword(password: Str63): SHA1Hash;
 var
   saltedPassword: Str255;
   data: array[0..254] of Byte;
@@ -595,7 +595,7 @@ begin
     HashPassword := HashPassword + LowerCase(IntToHex(digest[i], 2));
 end;
 
-function AuthenticateUser(name: Str64; password: Str64): Boolean;
+function AuthenticateUser(name: Str63; password: Str63): Boolean;
 var
   user: TUser;
   passwordHash: SHA1Hash;
@@ -611,7 +611,7 @@ begin
     AuthenticateUser := True;
 end;
 
-function SetUserPasswordByID(id: TUserID; password: Str64): Boolean;
+function SetUserPasswordByID(id: TUserID; password: Str63): Boolean;
 var
   user: TUser;
 begin
@@ -624,7 +624,7 @@ begin
   SetUserPasswordByID := UpdateUserByID(id, user);
 end;
 
-function SetUserPasswordByName(name: Str64; password: Str64): Boolean;
+function SetUserPasswordByName(name: Str63; password: Str63): Boolean;
 var
   user: TUser;
 begin

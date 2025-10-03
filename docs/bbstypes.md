@@ -20,8 +20,9 @@ The following custom types are defined in the `BBSTypes` unit:
 
 | Name      | Definition  | Notes                              |
 | --------- | ----------- | ---------------------------------- |
-| Str255    | String[255] | Used for longer strings            |
-| Str864    | String[64]  | Used for shorter strings           |
+| Str255    | String[255] | Used for long strings              |
+| Str63     | String[63]  | Used for medium strings            |
+| Str31     | String[31]  | Used for short string              |
 | SHA1Hash  | String[41]  | Hex string of a SHA-1 hash         |
 | UserID    | Word        | Unique user identifier             |
 | Timestamp | LongInt     | Seconds since 1/1/1904 (Mac Epoch) |
