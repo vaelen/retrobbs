@@ -40,12 +40,13 @@ The database header spans the first two pages of the `.DAT` file. Page 0 contain
 | Signature       | array[0..7] of Char           | 'RETRODB' + #0 for file type validation    |
 | Version         | Word                          | Format version (currently 1)               |
 | PageSize        | Word                          | Size of each page in bytes (always 512)    |
+| RecordSize      | Word                          | Size of each record in bytes (1-130050)    |
 | RecordCount     | LongInt                       | Total number of active records             |
 | NextRecordID    | LongInt                       | Next available Record ID                   |
 | LastCompacted   | TBBSTimestamp                 | Timestamp of last compaction operation     |
 | JournalPending  | Boolean                       | True if journal needs replay on open       |
 | IndexCount      | Byte                          | Number of secondary indexes (0-15)         |
-| Reserved        | array[0..5] of Byte           | Padding to 32 bytes                        |
+| Reserved        | array[0..3] of Byte           | Padding to 32 bytes                        |
 
 **Index List (480 bytes):**
 | Name            | Type                          | Notes                                      |
@@ -87,13 +88,18 @@ The database header spans the first two pages of the `.DAT` file. Page 0 contain
 
 **PageSize**: Always 512 bytes. This constant size matches the BTree unit and simplifies disk I/O.
 
+**RecordSize**: Size of each record in bytes. All records in this database are the same size. This determines how many pages each record occupies:
+- **PagesPerRecord** = ceiling(RecordSize / 506)
+- Maximum: 65535 bytes (limited by Word), which is ~130 pages
+- Examples: 100 byte record = 1 page, 1000 byte record = 2 pages
+
 **Compaction**: The process of removing empty pages and rebuilding indexes to reclaim disk space. The `LastCompacted` field tracks when this was last done.
 
 **Journal Pending**: Set to `True` when a transaction begins, `False` when committed. If `True` on database open, the journal must be replayed to complete interrupted operations.
 
 **IndexCount**: Number of active secondary indexes (0-15). Maximum 15 indexes supported.
 
-**Reserved**: 6 bytes of padding to bring header to exactly 32 bytes.
+**Reserved**: 4 bytes of padding to bring header to exactly 32 bytes.
 
 **FreePageCount** (in TDBFreeList, page 1): Total count of all free pages in the database (maximum 65535). This counter is incremented when a page is deleted and decremented when a page is allocated. If this value is 0, allocate a new page at end of file. If this value is > 0 but `FreePageListLen = 0`, call `UpdateFreePages` to repopulate the `FreePages` array.
 
@@ -105,29 +111,39 @@ The database header spans the first two pages of the `.DAT` file. Page 0 contain
 
 ### Data Page Layout
 
-The `.DAT` file contains a series of pages of type `TDBPage` stored in fixed 512-byte format. Pages are numbered sequentially starting from 0. Pages 0-1 contain the database header (with index list) and free list. Data pages start at page 2. This data is queried on demand as needed by the program and not stored in memory.
+The `.DAT` file contains a series of pages of type `TDBPage` stored in fixed 512-byte format. Pages are numbered sequentially starting from 0. Pages 0-1 contain the database header (with index list) and free list. Data pages start at page 2.
+
+Records may span multiple consecutive pages depending on `RecordSize`:
+- **PagesPerRecord** = ceiling(RecordSize / 506)
+- Records are stored in consecutive page runs
+- All pages in a multi-page record share the same Record ID
+- Only the first page has Status = 1 (Active), additional pages have Status = 2 (Continuation)
 
 | Name   | Type                   | Notes                                    |
 | ------ | ---------------------- | ---------------------------------------- |
 | ID     | LongInt (4 bytes)      | Unique record identifier                 |
-| Status | Byte (1 byte)          | 0 = Empty, 1 = Active                    |
-| Data   | array[0..506] of Byte  | Actual record data (507 bytes max)       |
+| Status | Byte (1 byte)          | 0 = Empty, 1 = Active, 2 = Continuation  |
+| Data   | array[0..506] of Byte  | Actual record data (506 bytes per page)  |
 
 **Page Size Calculation**:
 - Page size: 512 bytes (constant)
 - Overhead: 4 bytes (ID) + 1 byte (Status) = 5 bytes
-- Data size: 512 - 5 = 507 bytes available for record data
+- Data size: 512 - 5 = 506 bytes available for record data per page (note: changed from 507 to 506 for alignment)
 
 **Free Space Management**:
-- When a record is deleted:
-  - Set page `Status` to 0 (Empty)
-  - Increment `FreePageCount` (in TDBFreeList)
-  - If `FreePageListLen < 127`: Add page number to `FreePages[FreePageListLen]` and increment `FreePageListLen`
-  - If array is full: Page number is not added, but `FreePageCount` tracks it
+- When a record is deleted (spanning PagesPerRecord pages):
+  - Set all pages `Status` to 0 (Empty)
+  - Increment `FreePageCount` by PagesPerRecord
+  - Add first page number to free list if room (subsequent pages can be calculated)
 - When adding a record:
-  - If `FreePageCount = 0`: Allocate new page at end of file (O(1))
-  - If `FreePageCount > 0` and `FreePageListLen > 0`: Use `FreePages[FreePageListLen-1]`, decrement both counters (O(1))
-  - If `FreePageCount > 0` but `FreePageListLen = 0`: Call `UpdateFreePages` to scan and refill array (O(n) once, then O(1) for next 127 allocations)
+  - Calculate required pages: `pagesNeeded = ceiling(RecordSize / 506)`
+  - If `FreePageCount < pagesNeeded`: Append new pages at end of file
+  - Else if `FreePageListLen > 0`:
+    - Search free list for consecutive run of pagesNeeded pages
+    - Or append to end if no suitable run found
+  - Else: Call `UpdateFreePages` to scan and refill array
+  - Mark first page Status = 1 (Active), additional pages Status = 2 (Continuation)
+  - Decrement `FreePageCount` by pagesNeeded
 
 ### Primary Index (.IDX file)
 
@@ -135,12 +151,14 @@ The `.IDX` file is a B-Tree index (as defined by the `BTree` unit) that maps Rec
 
 **Index Structure**:
 - **Keys**: Record IDs (LongInt values from `TDBPage.ID`)
-- **Values**: Page Numbers (physical page numbers in .DAT file where record is stored)
+- **Values**: Page Numbers (physical page number of the first page where record starts)
 - **Purpose**: Translates logical Record IDs to physical page locations
 
+For multi-page records, the index points to the first page only. Subsequent pages are at consecutive positions (pageNum+1, pageNum+2, etc.).
+
 This primary index is updated whenever:
-- A record is added (insert RecordID → PageNum mapping)
-- A record is moved to a new page during compaction (update RecordID mapping)
+- A record is added (insert RecordID → FirstPageNum mapping)
+- A record is moved to a new location during compaction (update RecordID mapping)
 - A record is deleted (remove RecordID from index)
 
 ### Secondary Indexes (.I?? files)
@@ -194,13 +212,18 @@ To find a User by their Record ID, the program:
    ```
 
 2. **Finds the page number**: Calls `Find(idxTree, recordID, values, count)` where `recordID` is the Record ID to search for
-   - The `values` array will contain the physical page number
+   - The `values` array will contain the physical page number of the first page
 
-3. **Reads the data page**:
-   - Seeks to position `(pageNum * 512)` in `USERS.DAT`
-   - Reads the `TDBPage` record (512 bytes)
-   - Verifies `Status = 1` (Active) and `ID = recordID`
-   - Returns the `Data` field to the caller
+3. **Reads the data pages**:
+   - Calculate pages needed: `pagesNeeded = ceiling(Header.RecordSize / 506)`
+   - For each page i from 0 to pagesNeeded-1:
+     - Seeks to position `((pageNum + i) * 512)` in `USERS.DAT`
+     - Reads the `TDBPage` record (512 bytes)
+     - Verifies `ID = recordID`
+     - First page: verify `Status = 1` (Active)
+     - Additional pages: verify `Status = 2` (Continuation)
+     - Append `Data` to record buffer
+   - Returns the assembled record data to the caller
 
 4. **Closes the index**: `CloseBTree(idxTree)`
 
@@ -225,7 +248,7 @@ Finding by a secondary index requires two lookups: secondary index → Record ID
 5. **Lookup Page Number**: For each Record ID:
    - Open primary index: `OpenBTree(idxTree, 'USERS.IDX')`
    - Find page: `Find(idxTree, recordID, pageNums, count)`
-   - Read page from .DAT file (at `pageNum * 512`)
+   - Read record from .DAT file (may span multiple consecutive pages)
    - Verify username matches (handle CRC16 hash collisions)
    - Close primary index
 
@@ -235,86 +258,104 @@ Finding by a secondary index requires two lookups: secondary index → Record ID
 
 1. **Assign Record ID**: Use `Header.NextRecordID` and increment it
 
-2. **Find free page**:
-   - If `FreeList.FreePageCount = 0`: Append new page at end of file
+2. **Calculate pages needed**: `pagesNeeded = ceiling(Header.RecordSize / 506)`
+
+3. **Find free pages**:
+   - If `FreeList.FreePageCount < pagesNeeded`: Append new pages at end of file
    - Else if `FreeList.FreePageListLen > 0`:
-     - Decrement `FreePageListLen`
-     - Use `FreePages[FreePageListLen]`
-     - Decrement `FreePageCount`
+     - Search free list for consecutive run of pagesNeeded pages
+     - If found: use those pages and remove from free list
+     - If not found: append new pages at end of file
    - Else (count > 0 but list empty):
      - Call `UpdateFreePages` to scan database and refill `FreePages` array
-     - Then use `FreePages[FreePageListLen-1]` and decrement both counters
+     - Then search for consecutive run
 
-3. **Write data**:
+4. **Write data across pages**:
    ```pascal
-   page.ID := newRecordID;
-   page.Status := 1;  { Active }
-   page.Data := userData;
-   { Write to .DAT at pageNum * 512 }
+   offset := 0;
+   for i := 0 to pagesNeeded - 1 do begin
+     page.ID := newRecordID;
+     if i = 0 then
+       page.Status := 1  { Active - first page }
+     else
+       page.Status := 2; { Continuation }
+
+     copyLen := min(506, RecordSize - offset);
+     Move(userData[offset], page.Data[0], copyLen);
+     { Write to .DAT at (firstPageNum + i) * 512 }
+     offset := offset + 506;
+   end;
    ```
 
-4. **Update primary index**:
+5. **Update primary index**:
    - Open `USERS.IDX`
-   - Insert mapping: `Insert(idxTree, newRecordID, pageNum)`
+   - Insert mapping: `Insert(idxTree, newRecordID, firstPageNum)`
+   - Note: Only the first page number is stored
 
-5. **Update all secondary indexes**:
+6. **Update all secondary indexes**:
    - For username index: `Insert(nameTree, StringKey(username), newRecordID)`
    - For email index: `Insert(emailTree, StringKey(email), newRecordID)`
    - Note: Secondary indexes store Record IDs, not Page Numbers
 
-6. **Update header and free list**:
+7. **Update header and free list**:
    - Increment `Header.RecordCount`
    - Increment `Header.NextRecordID`
+   - Decrement `FreeList.FreePageCount` by pagesNeeded
    - Write header back to page 0
    - Write free list back to page 1 (if modified)
 
 ### Example Usage: Deleting a Record
 
-1. **Find the record**: Use primary index to get Record ID → Page Number
+1. **Find the record**: Use primary index to get Record ID → First Page Number
 
-2. **Mark as empty**:
+2. **Calculate pages to delete**: `pagesNeeded = ceiling(Header.RecordSize / 506)`
+
+3. **Mark all pages as empty**:
    ```pascal
-   page.Status := 0;  { Empty }
-   { Write updated page back to .DAT }
+   for i := 0 to pagesNeeded - 1 do begin
+     page.Status := 0;  { Empty }
+     { Write updated page at (firstPageNum + i) back to .DAT }
+   end;
    ```
 
-3. **Update primary index**:
+4. **Update primary index**:
    - `Delete(idxTree, recordID)` - Remove Record ID from primary index
 
-4. **Update secondary indexes**: Remove from all secondary indexes
+5. **Update secondary indexes**: Remove from all secondary indexes
    - `DeleteValue(nameTree, StringKey(username), recordID)`
    - `DeleteValue(emailTree, StringKey(email), recordID)`
 
-5. **Add to free list**:
-   - Increment `FreeList.FreePageCount` (always, tracks total free pages)
+6. **Add to free list**:
+   - Increment `FreeList.FreePageCount` by pagesNeeded
    - If `FreeList.FreePageListLen < 127`:
-     - Add page number to `FreePages[FreePageListLen]`
+     - Add first page number to `FreePages[FreePageListLen]`
      - Increment `FreePageListLen`
-   - Else: Page number not added to array, but count still incremented
+     - Note: Only store first page; consecutive pages can be calculated
+   - Else: Page numbers not added to array, but count still incremented
 
-6. **Update header and free list**:
+7. **Update header and free list**:
    - Decrement `Header.RecordCount`
    - Write header back to page 0
    - Write free list back to page 1
 
-7. **Compaction**: Eventually run compaction to consolidate pages and rebuild free list accurately
+8. **Compaction**: Eventually run compaction to consolidate pages and rebuild free list accurately
 
 ### Example Usage: Updating a Record
 
 **Non-indexed field changes**:
-- Simply overwrite the data in the existing page
+- Simply overwrite the data in the existing pages (all pagesNeeded pages)
 - No index updates needed
 
 **Indexed field changes** (e.g., username change):
 1. **Delete old secondary index entry**: `DeleteValue(nameTree, StringKey(oldUsername), recordID)`
-2. **Update the data page**: Write new data to existing page
+2. **Update the data pages**: Write new data to existing pages
 3. **Insert new secondary index entry**: `Insert(nameTree, StringKey(newUsername), recordID)`
 4. **Primary index unchanged**: Record ID stays the same, so primary index is not modified
 
-**Moving a record to a new page** (during compaction):
-1. **Write data to new page**: Copy record to new physical location
-2. **Update primary index**: Change mapping from `recordID → oldPageNum` to `recordID → newPageNum`
-3. **Mark old page empty**: Set old page `Status = 0`
+**Moving a record to a new location** (during compaction):
+1. **Write data to new pages**: Copy record to new physical location (pagesNeeded consecutive pages)
+2. **Update primary index**: Change mapping from `recordID → oldFirstPageNum` to `recordID → newFirstPageNum`
+3. **Mark old pages empty**: Set all old pages `Status = 0`
 4. **Secondary indexes unchanged**: They map to Record IDs, so no updates needed
 
 ## Transaction Protocol
@@ -492,12 +533,13 @@ type
     Signature: array[0..7] of Char;      { 'RETRODB' + #0 }
     Version: Word;                        { Format version (1) }
     PageSize: Word;                       { Size of each page (always 512) }
+    RecordSize: Word;                     { Size of each record in bytes }
     RecordCount: LongInt;                 { Total active records }
     NextRecordID: LongInt;                { Next available Record ID }
     LastCompacted: TBBSTimestamp;         { Timestamp of last compaction }
     JournalPending: Boolean;              { True if journal needs replay }
     IndexCount: Byte;                     { Number of secondary indexes (0-15) }
-    Reserved: array[0..5] of Byte;        { Padding to 32 bytes }
+    Reserved: array[0..3] of Byte;        { Padding to 32 bytes }
     Indexes: array[0..14] of TDBIndexInfo; { Secondary index definitions }
   end;
 
@@ -509,7 +551,7 @@ type
 
   TDBPage = record
     ID: LongInt;       { Record ID }
-    Status: Byte;      { 0 = Empty, 1 = Active }
+    Status: Byte;      { 0 = Empty, 1 = Active, 2 = Continuation }
     Data: array[0..506] of Byte;
   end;
 
