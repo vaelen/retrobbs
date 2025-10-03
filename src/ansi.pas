@@ -12,15 +12,18 @@ unit ANSI;
 
 interface
 
+uses 
+  BBSTypes;
+
 const
   ESC = #27;  { ASCII Escape character }
 
 { Cursor Movement Functions }
-procedure CursorUp(lines: Integer);
-procedure CursorDown(lines: Integer);
-procedure CursorForward(chars: Integer);
-procedure CursorBackward(chars: Integer);
-procedure CursorPosition(line, column: Integer);
+procedure CursorUp(lines: TInt);
+procedure CursorDown(lines: TInt);
+procedure CursorForward(chars: TInt);
+procedure CursorBackward(chars: TInt);
+procedure CursorPosition(line, column: TInt);
 procedure CursorHome;
 
 { Cursor Save/Restore }
@@ -71,16 +74,16 @@ procedure SetEditDeferred;
 
 { Edit Functions }
 procedure DeleteChar;
-procedure DeleteChars(count: Integer);
+procedure DeleteChars(count: TInt);
 procedure DeleteLine;
-procedure DeleteLines(count: Integer);
+procedure DeleteLines(count: TInt);
 procedure InsertLine;
-procedure InsertLines(count: Integer);
+procedure InsertLines(count: TInt);
 
 { Color Functions }
-procedure SetForegroundColor(color: Integer);
-procedure SetBackgroundColor(color: Integer);
-procedure SetColor(foreground, background: Integer);
+procedure SetForegroundColor(color: TInt);
+procedure SetBackgroundColor(color: TInt);
+procedure SetColor(foreground, background: TInt);
 
 implementation
 
@@ -89,31 +92,31 @@ uses
 
 { Cursor Movement Functions }
 
-procedure CursorUp(lines: Integer);
+procedure CursorUp(lines: TInt);
 begin
   if lines > 0 then
     Write(ESC, '[', lines, 'A');
 end;
 
-procedure CursorDown(lines: Integer);
+procedure CursorDown(lines: TInt);
 begin
   if lines > 0 then
     Write(ESC, '[', lines, 'B');
 end;
 
-procedure CursorForward(chars: Integer);
+procedure CursorForward(chars: TInt);
 begin
   if chars > 0 then
     Write(ESC, '[', chars, 'C');
 end;
 
-procedure CursorBackward(chars: Integer);
+procedure CursorBackward(chars: TInt);
 begin
   if chars > 0 then
     Write(ESC, '[', chars, 'D');
 end;
 
-procedure CursorPosition(line, column: Integer);
+procedure CursorPosition(line, column: TInt);
 begin
   Write(ESC, '[', line, ';', column, 'H');
 end;
@@ -326,7 +329,7 @@ begin
   Write(ESC, '[P');
 end;
 
-procedure DeleteChars(count: Integer);
+procedure DeleteChars(count: TInt);
 begin
   if count > 0 then
     Write(ESC, '[', count, 'P');
@@ -337,7 +340,7 @@ begin
   Write(ESC, '[M');
 end;
 
-procedure DeleteLines(count: Integer);
+procedure DeleteLines(count: TInt);
 begin
   if count > 0 then
     Write(ESC, '[', count, 'M');
@@ -348,7 +351,7 @@ begin
   Write(ESC, '[L');
 end;
 
-procedure InsertLines(count: Integer);
+procedure InsertLines(count: TInt);
 begin
   if count > 0 then
     Write(ESC, '[', count, 'L');
@@ -356,7 +359,7 @@ end;
 
 { Color Functions }
 
-procedure SetForegroundColor(color: Integer);
+procedure SetForegroundColor(color: TInt);
 begin
   if (color >= 0) and (color <= 7) then
     Write(ESC, '[', 30 + color, 'm')
@@ -364,7 +367,7 @@ begin
     Write(ESC, '[', 90 + (color - 8), 'm');
 end;
 
-procedure SetBackgroundColor(color: Integer);
+procedure SetBackgroundColor(color: TInt);
 begin
   if (color >= 0) and (color <= 7) then
     Write(ESC, '[', 40 + color, 'm')
@@ -372,7 +375,7 @@ begin
     Write(ESC, '[', 100 + (color - 8), 'm');
 end;
 
-procedure SetColor(foreground, background: Integer);
+procedure SetColor(foreground, background: TInt);
 begin
   SetForegroundColor(foreground);
   SetBackgroundColor(background);

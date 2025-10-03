@@ -8,11 +8,11 @@ The `ANSI` unit provides a display library for outputing text to an ANSI termina
 
 | Done | Function                              | Description                           |
 |------|---------------------------------------|---------------------------------------|
-| [x]  | CursorUp(lines: Integer)              | Move cursor up specified lines        |
-| [x]  | CursorDown(lines: Integer)            | Move cursor down specified lines      |
-| [x]  | CursorForward(chars: Integer)         | Move cursor forward specified chars   |
-| [x]  | CursorBackward(chars: Integer)        | Move cursor backward specified chars  |
-| [x]  | CursorPosition(line, column: Integer) | Move cursor to absolute position      |
+| [x]  | CursorUp(lines: TInt)              | Move cursor up specified lines        |
+| [x]  | CursorDown(lines: TInt)            | Move cursor down specified lines      |
+| [x]  | CursorForward(chars: TInt)         | Move cursor forward specified chars   |
+| [x]  | CursorBackward(chars: TInt)        | Move cursor backward specified chars  |
+| [x]  | CursorPosition(line, column: TInt) | Move cursor to absolute position      |
 | [x]  | CursorHome                            | Move cursor to home position (1,1)    |
 | [x]  | SaveCursor                            | Save cursor position and attributes   |
 | [x]  | RestoreCursor                         | Restore cursor position and attributes|
@@ -78,19 +78,19 @@ The `ANSI` unit provides a display library for outputing text to an ANSI termina
 | Done | Function                   | Description                          |
 |------|----------------------------|--------------------------------------|
 | [x]  | DeleteChar                 | Delete character at cursor           |
-| [x]  | DeleteChars(count: Integer)| Delete count chars from cursor       |
+| [x]  | DeleteChars(count: TInt)| Delete count chars from cursor       |
 | [x]  | DeleteLine                 | Delete line at cursor                |
-| [x]  | DeleteLines(count: Integer)| Delete count lines from cursor       |
+| [x]  | DeleteLines(count: TInt)| Delete count lines from cursor       |
 | [x]  | InsertLine                 | Insert line at cursor                |
-| [x]  | InsertLines(count: Integer)| Insert count lines at cursor         |
+| [x]  | InsertLines(count: TInt)| Insert count lines at cursor         |
 
 ### Colors
 
 | Done | Function                                    | Description                        |
 |------|---------------------------------------------|------------------------------------|
-| [x]  | SetForegroundColor(color: Integer)          | Set foreground color (0-15)        |
-| [x]  | SetBackgroundColor(color: Integer)          | Set background color (0-15)        |
-| [x]  | SetColor(foreground, background: Integer)   | Set both foreground and background |
+| [x]  | SetForegroundColor(color: TInt)          | Set foreground color (0-15)        |
+| [x]  | SetBackgroundColor(color: TInt)          | Set background color (0-15)        |
+| [x]  | SetColor(foreground, background: TInt)   | Set both foreground and background |
 
 **Standard Colors (0-7):**
 - 0: Black

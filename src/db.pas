@@ -40,11 +40,11 @@ type
   { Database Header - 512 bytes (page 0) }
   TDBHeader = record
     Signature: array[0..7] of Char;         { 8 bytes }
-    Version: Word;                          { 2 bytes }
-    PageSize: Word;                         { 2 bytes }
-    RecordSize: Word;                       { 2 bytes }
-    RecordCount: LongInt;                   { 4 bytes }
-    NextRecordID: LongInt;                  { 4 bytes }
+    Version: TWord;                          { 2 bytes }
+    PageSize: TWord;                         { 2 bytes }
+    RecordSize: TWord;                       { 2 bytes }
+    RecordCount: TLong;                   { 4 bytes }
+    NextRecordID: TLong;                  { 4 bytes }
     LastCompacted: TBBSTimestamp;           { 4 bytes }
     JournalPending: Boolean;                { 1 byte }
     IndexCount: Byte;                       { 1 byte }
@@ -54,14 +54,14 @@ type
 
   { Free Page List - 512 bytes (page 1) }
   TDBFreeList = record
-    FreePageCount: Word;                  { 2 bytes }
-    FreePageListLen: Word;                { 2 bytes }
-    FreePages: array[0..126] of LongInt;  { 508 bytes }
+    FreePageCount: TWord;                  { 2 bytes }
+    FreePageListLen: TWord;                { 2 bytes }
+    FreePages: array[0..126] of TLong;  { 508 bytes }
   end;
 
   { Database Page - 512 bytes }
   TDBPage = record
-    ID: LongInt;                     { 4 bytes - Record ID }
+    ID: TLong;                     { 4 bytes - Record ID }
     Status: Byte;                    { 1 byte - Page status }
     Reserved: Byte;                  { 1 byte - Reserved for alignment }
     Data: array[0..505] of Byte;     { 506 bytes }
@@ -70,10 +70,10 @@ type
   { Journal Entry - 518 bytes }
   TDBJournalEntry = record
     Operation: Byte;                 { 1 byte }
-    PageNum: LongInt;                { 4 bytes }
-    RecordID: LongInt;               { 4 bytes }
+    PageNum: TLong;                { 4 bytes }
+    RecordID: TLong;               { 4 bytes }
     Data: array[0..506] of Byte;     { 507 bytes }
-    Checksum: Word;                  { 2 bytes }
+    Checksum: TWord;                  { 2 bytes }
   end;
 
   { Database Structure }
@@ -90,10 +90,10 @@ type
 { Phase 2: Low-Level File Operations }
 
 { Read a page from the data file }
-function ReadPage(var db: TDatabase; pageNum: LongInt; var page: TDBPage): Boolean;
+function ReadPage(var db: TDatabase; pageNum: TLong; var page: TDBPage): Boolean;
 
 { Write a page to the data file }
-function WritePage(var db: TDatabase; pageNum: LongInt; const page: TDBPage): Boolean;
+function WritePage(var db: TDatabase; pageNum: TLong; const page: TDBPage): Boolean;
 
 { Read the database header }
 function ReadHeader(var db: TDatabase): Boolean;
@@ -108,24 +108,24 @@ function ReadFreeList(var db: TDatabase): Boolean;
 function WriteFreeList(var db: TDatabase): Boolean;
 
 { Calculate pages needed for a record }
-function CalculatePagesNeeded(recordSize: Word): Integer;
+function CalculatePagesNeeded(recordSize: TWord): TInt;
 
 { Read a multi-page record }
-function ReadRecord(var db: TDatabase; firstPageNum: LongInt; var data: array of Byte): Boolean;
+function ReadRecord(var db: TDatabase; firstPageNum: TLong; var data: array of Byte): Boolean;
 
 { Write a multi-page record }
-function WriteRecord(var db: TDatabase; firstPageNum: LongInt; recordID: LongInt; const data: array of Byte): Boolean;
+function WriteRecord(var db: TDatabase; firstPageNum: TLong; recordID: TLong; const data: array of Byte): Boolean;
 
 { Phase 3: Free Space Management }
 
 { Find consecutive free pages }
-function FindConsecutiveFreePages(var db: TDatabase; count: Integer; var firstPage: LongInt): Boolean;
+function FindConsecutiveFreePages(var db: TDatabase; count: TInt; var firstPage: TLong): Boolean;
 
 { Allocate pages for a record }
-function AllocatePages(var db: TDatabase; count: Integer; var firstPage: LongInt): Boolean;
+function AllocatePages(var db: TDatabase; count: TInt; var firstPage: TLong): Boolean;
 
 { Free pages from a deleted record }
-function FreePages(var db: TDatabase; firstPage: LongInt; count: Integer): Boolean;
+function FreePages(var db: TDatabase; firstPage: TLong; count: TInt): Boolean;
 
 { Update the free page list by scanning the database }
 function UpdateFreePages(var db: TDatabase): Boolean;
@@ -133,36 +133,36 @@ function UpdateFreePages(var db: TDatabase): Boolean;
 { Phase 4: Index Management }
 
 { Get index file name }
-function GetIndexFileName(baseName: Str63; indexNum: Integer): String;
+function GetIndexFileName(baseName: Str63; indexNum: TInt): String;
 
 { Open an index file }
-function OpenIndexFile(var tree: TBTree; baseName: Str63; indexNum: Integer): Boolean;
+function OpenIndexFile(var tree: TBTree; baseName: Str63; indexNum: TInt): Boolean;
 
 { Create an index file }
-function CreateIndexFile(baseName: Str63; indexNum: Integer): Boolean;
+function CreateIndexFile(baseName: Str63; indexNum: TInt): Boolean;
 
 { Generate index key from value }
-function GenerateIndexKey(indexType: TDBIndexType; const value: array of Byte): LongInt;
+function GenerateIndexKey(indexType: TDBIndexType; const value: array of Byte): TLong;
 
 { Insert into an index }
-function InsertIntoIndex(var tree: TBTree; key: LongInt; value: LongInt): Boolean;
+function InsertIntoIndex(var tree: TBTree; key: TLong; value: TLong): Boolean;
 
 { Delete from an index }
-function DeleteFromIndex(var tree: TBTree; key: LongInt; value: LongInt): Boolean;
+function DeleteFromIndex(var tree: TBTree; key: TLong; value: TLong): Boolean;
 
 { Find in an index }
-function FindInIndex(var tree: TBTree; key: LongInt; var values: array of LongInt; var count: Integer): Boolean;
+function FindInIndex(var tree: TBTree; key: TLong; var values: array of TLong; var count: TInt): Boolean;
 
 { Phase 5: Journal/Transaction System }
 
 { Calculate journal entry checksum }
-function CalculateJournalChecksum(const entry: TDBJournalEntry): Word;
+function CalculateJournalChecksum(const entry: TDBJournalEntry): TWord;
 
 { Write journal entry }
 function WriteJournalEntry(var db: TDatabase; const entry: TDBJournalEntry): Boolean;
 
 { Read journal entry }
-function ReadJournalEntry(var db: TDatabase; entryNum: Integer; var entry: TDBJournalEntry): Boolean;
+function ReadJournalEntry(var db: TDatabase; entryNum: TInt; var entry: TDBJournalEntry): Boolean;
 
 { Begin transaction }
 function BeginTransaction(var db: TDatabase): Boolean;
@@ -179,7 +179,7 @@ function ReplayJournal(var db: TDatabase): Boolean;
 { Phase 6: Database Operations }
 
 { Create a new database }
-function CreateDatabase(name: Str63; recordSize: Word): Boolean;
+function CreateDatabase(name: Str63; recordSize: TWord): Boolean;
 
 { Open an existing database }
 function OpenDatabase(name: Str63; var db: TDatabase): Boolean;
@@ -190,19 +190,19 @@ procedure CloseDatabase(var db: TDatabase);
 { Phase 7: Record Operations }
 
 { Add a new record }
-function AddRecord(var db: TDatabase; const data: array of Byte; var recordID: LongInt): Boolean;
+function AddRecord(var db: TDatabase; const data: array of Byte; var recordID: TLong): Boolean;
 
 { Find record by ID }
-function FindRecordByID(var db: TDatabase; id: LongInt; var data: array of Byte): Boolean;
+function FindRecordByID(var db: TDatabase; id: TLong; var data: array of Byte): Boolean;
 
 { Find record by string field }
-function FindRecordByString(var db: TDatabase; fieldName: Str63; value: Str63; var data: array of Byte; var recordID: LongInt): Boolean;
+function FindRecordByString(var db: TDatabase; fieldName: Str63; value: Str63; var data: array of Byte; var recordID: TLong): Boolean;
 
 { Update a record }
-function UpdateRecord(var db: TDatabase; id: LongInt; const data: array of Byte): Boolean;
+function UpdateRecord(var db: TDatabase; id: TLong; const data: array of Byte): Boolean;
 
 { Delete a record }
-function DeleteRecord(var db: TDatabase; id: LongInt): Boolean;
+function DeleteRecord(var db: TDatabase; id: TLong): Boolean;
 
 { Phase 8: Index Maintenance }
 
@@ -210,7 +210,7 @@ function DeleteRecord(var db: TDatabase; id: LongInt): Boolean;
 function AddIndex(var db: TDatabase; fieldName: String; indexType: TDBIndexType): Boolean;
 
 { Rebuild a single index }
-function RebuildIndex(var db: TDatabase; indexNumber: Integer): Boolean;
+function RebuildIndex(var db: TDatabase; indexNumber: TInt): Boolean;
 
 { Rebuild all indexes }
 function RebuildAllIndexes(var db: TDatabase): Boolean;
@@ -229,7 +229,7 @@ uses
   SysUtils;
 
 { Helper function - inline min }
-function MinInt(a, b: Integer): Integer; inline;
+function MinInt(a, b: TInt): TInt;
 begin
   if a < b then
     MinInt := a
@@ -238,10 +238,10 @@ begin
 end;
 
 { Helper function to get file size in pages }
-function GetFileSize(var f: File): LongInt;
+function GetFileSize(var f: File): TLong;
 var
-  currentPos: LongInt;
-  size: LongInt;
+  currentPos: TLong;
+  size: TLong;
 begin
   currentPos := FilePos(f);
   Seek(f, FileSize(f));
@@ -252,9 +252,9 @@ end;
 
 { Phase 2: Low-Level File Operations Implementation }
 
-function ReadPage(var db: TDatabase; pageNum: LongInt; var page: TDBPage): Boolean;
+function ReadPage(var db: TDatabase; pageNum: TLong; var page: TDBPage): Boolean;
 var
-  bytesRead: Integer;
+  bytesRead: TInt;
 begin
   ReadPage := False;
 
@@ -270,9 +270,9 @@ begin
     ReadPage := (bytesRead = PAGE_SIZE);
 end;
 
-function WritePage(var db: TDatabase; pageNum: LongInt; const page: TDBPage): Boolean;
+function WritePage(var db: TDatabase; pageNum: TLong; const page: TDBPage): Boolean;
 var
-  bytesWritten: Integer;
+  bytesWritten: TInt;
 begin
   WritePage := False;
 
@@ -291,8 +291,8 @@ end;
 function ReadHeader(var db: TDatabase): Boolean;
 var
   page: array[0..PAGE_SIZE-1] of Byte;
-  bytesRead: Integer;
-  i: Integer;
+  bytesRead: TInt;
+  i: TInt;
 begin
   ReadHeader := False;
 
@@ -335,7 +335,7 @@ end;
 function WriteHeader(var db: TDatabase): Boolean;
 var
   page: array[0..PAGE_SIZE-1] of Byte;
-  bytesWritten: Integer;
+  bytesWritten: TInt;
 begin
   WriteHeader := False;
 
@@ -369,7 +369,7 @@ end;
 function ReadFreeList(var db: TDatabase): Boolean;
 var
   page: array[0..PAGE_SIZE-1] of Byte;
-  bytesRead: Integer;
+  bytesRead: TInt;
 begin
   ReadFreeList := False;
 
@@ -394,7 +394,7 @@ end;
 function WriteFreeList(var db: TDatabase): Boolean;
 var
   page: array[0..PAGE_SIZE-1] of Byte;
-  bytesWritten: Integer;
+  bytesWritten: TInt;
 begin
   WriteFreeList := False;
 
@@ -416,18 +416,18 @@ begin
     WriteFreeList := (bytesWritten = PAGE_SIZE);
 end;
 
-function CalculatePagesNeeded(recordSize: Word): Integer;
+function CalculatePagesNeeded(recordSize: TWord): TInt;
 begin
   { Calculate ceiling of recordSize / PAGE_DATA_SIZE }
   CalculatePagesNeeded := (recordSize + PAGE_DATA_SIZE - 1) div PAGE_DATA_SIZE;
 end;
 
-function ReadRecord(var db: TDatabase; firstPageNum: LongInt; var data: array of Byte): Boolean;
+function ReadRecord(var db: TDatabase; firstPageNum: TLong; var data: array of Byte): Boolean;
 var
   page: TDBPage;
-  pagesNeeded: Integer;
-  i, offset, bytesToCopy: Integer;
-  recordID: LongInt;
+  pagesNeeded: TInt;
+  i, offset, bytesToCopy: TInt;
+  recordID: TLong;
 begin
   ReadRecord := False;
 
@@ -481,11 +481,11 @@ begin
   ReadRecord := True;
 end;
 
-function WriteRecord(var db: TDatabase; firstPageNum: LongInt; recordID: LongInt; const data: array of Byte): Boolean;
+function WriteRecord(var db: TDatabase; firstPageNum: TLong; recordID: TLong; const data: array of Byte): Boolean;
 var
   page: TDBPage;
-  pagesNeeded: Integer;
-  i, offset, bytesToCopy: Integer;
+  pagesNeeded: TInt;
+  i, offset, bytesToCopy: TInt;
 begin
   WriteRecord := False;
 
@@ -524,10 +524,10 @@ end;
 
 { Phase 3: Free Space Management Implementation }
 
-function FindConsecutiveFreePages(var db: TDatabase; count: Integer; var firstPage: LongInt): Boolean;
+function FindConsecutiveFreePages(var db: TDatabase; count: TInt; var firstPage: TLong): Boolean;
 var
-  i, j, consecutive: Integer;
-  startPage: LongInt;
+  i, j, consecutive: TInt;
+  startPage: TLong;
 begin
   FindConsecutiveFreePages := False;
 
@@ -569,10 +569,10 @@ begin
   end;
 end;
 
-function AllocatePages(var db: TDatabase; count: Integer; var firstPage: LongInt): Boolean;
+function AllocatePages(var db: TDatabase; count: TInt; var firstPage: TLong): Boolean;
 var
-  fileSizeInPages: LongInt;
-  i, j: Integer;
+  fileSizeInPages: TLong;
+  i, j: TInt;
   found: Boolean;
 begin
   AllocatePages := False;
@@ -642,10 +642,10 @@ begin
   AllocatePages := True;
 end;
 
-function FreePages(var db: TDatabase; firstPage: LongInt; count: Integer): Boolean;
+function FreePages(var db: TDatabase; firstPage: TLong; count: TInt): Boolean;
 var
   page: TDBPage;
-  i: Integer;
+  i: TInt;
 begin
   FreePages := False;
 
@@ -679,9 +679,9 @@ end;
 function UpdateFreePages(var db: TDatabase): Boolean;
 var
   page: TDBPage;
-  pageNum: LongInt;
-  fileSizeInPages: LongInt;
-  freeCount: Word;
+  pageNum: TLong;
+  fileSizeInPages: TLong;
+  freeCount: TWord;
 begin
   UpdateFreePages := False;
 
@@ -717,7 +717,7 @@ end;
 
 { Phase 4: Index Management Implementation }
 
-function GetIndexFileName(baseName: Str63; indexNum: Integer): String;
+function GetIndexFileName(baseName: Str63; indexNum: TInt): String;
 begin
   if indexNum = -1 then
     GetIndexFileName := baseName + '.idx'
@@ -732,7 +732,7 @@ begin
     GetIndexFileName := '';
 end;
 
-function OpenIndexFile(var tree: TBTree; baseName: Str63; indexNum: Integer): Boolean;
+function OpenIndexFile(var tree: TBTree; baseName: Str63; indexNum: TInt): Boolean;
 var
   fileName: String;
 begin
@@ -746,7 +746,7 @@ begin
   OpenIndexFile := OpenBTree(tree, fileName);
 end;
 
-function CreateIndexFile(baseName: Str63; indexNum: Integer): Boolean;
+function CreateIndexFile(baseName: Str63; indexNum: TInt): Boolean;
 var
   fileName: String;
 begin
@@ -760,16 +760,18 @@ begin
   CreateIndexFile := CreateBTree(fileName);
 end;
 
-function GenerateIndexKey(indexType: TDBIndexType; const value: array of Byte): LongInt;
+function GenerateIndexKey(indexType: TDBIndexType; const value: array of Byte): TLong;
 var
   str: Str63;
-  i: Integer;
+  i: TInt;
   len: Byte;
+  result: TLong;
 begin
   if indexType = itID then
   begin
-    { First 4 bytes as LongInt }
-    Move(value[0], GenerateIndexKey, 4);
+    { First 4 bytes as TLong }
+    Move(value[0], result, 4);
+    GenerateIndexKey := result;
   end
   else { itString }
   begin
@@ -787,24 +789,24 @@ begin
   end;
 end;
 
-function InsertIntoIndex(var tree: TBTree; key: LongInt; value: LongInt): Boolean;
+function InsertIntoIndex(var tree: TBTree; key: TLong; value: TLong): Boolean;
 begin
   InsertIntoIndex := Insert(tree, key, value);
 end;
 
-function DeleteFromIndex(var tree: TBTree; key: LongInt; value: LongInt): Boolean;
+function DeleteFromIndex(var tree: TBTree; key: TLong; value: TLong): Boolean;
 begin
   DeleteFromIndex := DeleteValue(tree, key, value);
 end;
 
-function FindInIndex(var tree: TBTree; key: LongInt; var values: array of LongInt; var count: Integer): Boolean;
+function FindInIndex(var tree: TBTree; key: TLong; var values: array of TLong; var count: TInt): Boolean;
 begin
   FindInIndex := Find(tree, key, values, count);
 end;
 
 { Phase 5: Journal/Transaction System Implementation }
 
-function CalculateJournalChecksum(const entry: TDBJournalEntry): Word;
+function CalculateJournalChecksum(const entry: TDBJournalEntry): TWord;
 var
   buffer: array[0..514] of Byte;
 begin
@@ -820,7 +822,7 @@ end;
 function WriteJournalEntry(var db: TDatabase; const entry: TDBJournalEntry): Boolean;
 var
   modEntry: TDBJournalEntry;
-  bytesWritten: Integer;
+  bytesWritten: TInt;
 begin
   WriteJournalEntry := False;
 
@@ -841,9 +843,9 @@ begin
     WriteJournalEntry := (bytesWritten = SizeOf(TDBJournalEntry));
 end;
 
-function ReadJournalEntry(var db: TDatabase; entryNum: Integer; var entry: TDBJournalEntry): Boolean;
+function ReadJournalEntry(var db: TDatabase; entryNum: TInt; var entry: TDBJournalEntry): Boolean;
 var
-  bytesRead: Integer;
+  bytesRead: TInt;
 begin
   ReadJournalEntry := False;
 
@@ -914,11 +916,11 @@ end;
 
 function ReplayJournal(var db: TDatabase): Boolean;
 var
-  journalSize: LongInt;
-  entryCount: Integer;
-  i: Integer;
+  journalSize: TLong;
+  entryCount: TInt;
+  i: TInt;
   entry: TDBJournalEntry;
-  checksum: Word;
+  checksum: TWord;
   page: TDBPage;
 begin
   ReplayJournal := False;
@@ -990,14 +992,14 @@ end;
 
 { Phase 6: Database Operations Implementation }
 
-function CreateDatabase(name: Str63; recordSize: Word): Boolean;
+function CreateDatabase(name: Str63; recordSize: TWord): Boolean;
 var
   f, jf: File;
   header: TDBHeader;
   freeList: TDBFreeList;
   page: array[0..PAGE_SIZE-1] of Byte;
-  bytesWritten: Integer;
-  i: Integer;
+  bytesWritten: TInt;
+  i: TInt;
 begin
   CreateDatabase := False;
 
@@ -1183,12 +1185,12 @@ end;
 
 { Phase 7: Record Operations Implementation }
 
-function AddRecord(var db: TDatabase; const data: array of Byte; var recordID: LongInt): Boolean;
+function AddRecord(var db: TDatabase; const data: array of Byte; var recordID: TLong): Boolean;
 var
-  pagesNeeded: Integer;
-  firstPage: LongInt;
+  pagesNeeded: TInt;
+  firstPage: TLong;
   entry: TDBJournalEntry;
-  i: Integer;
+  i: TInt;
 begin
   AddRecord := False;
 
@@ -1268,11 +1270,11 @@ begin
   AddRecord := True;
 end;
 
-function FindRecordByID(var db: TDatabase; id: LongInt; var data: array of Byte): Boolean;
+function FindRecordByID(var db: TDatabase; id: TLong; var data: array of Byte): Boolean;
 var
-  values: array[0..9] of LongInt;
-  count: Integer;
-  firstPage: LongInt;
+  values: array[0..9] of TLong;
+  count: TInt;
+  firstPage: TLong;
 begin
   FindRecordByID := False;
 
@@ -1292,21 +1294,21 @@ begin
   FindRecordByID := ReadRecord(db, firstPage, data);
 end;
 
-function FindRecordByString(var db: TDatabase; fieldName: Str63; value: Str63; var data: array of Byte; var recordID: LongInt): Boolean;
+function FindRecordByString(var db: TDatabase; fieldName: Str63; value: Str63; var data: array of Byte; var recordID: TLong): Boolean;
 begin
   { TODO: Implement secondary index search }
   FindRecordByString := False;
 end;
 
-function UpdateRecord(var db: TDatabase; id: LongInt; const data: array of Byte): Boolean;
+function UpdateRecord(var db: TDatabase; id: TLong; const data: array of Byte): Boolean;
 var
   oldData: array[0..65535] of Byte;
-  values: array[0..9] of LongInt;
-  count: Integer;
-  firstPage: LongInt;
+  values: array[0..9] of TLong;
+  count: TInt;
+  firstPage: TLong;
   entry: TDBJournalEntry;
-  pagesNeeded: Integer;
-  i: Integer;
+  pagesNeeded: TInt;
+  i: TInt;
 begin
   UpdateRecord := False;
 
@@ -1378,15 +1380,15 @@ begin
   UpdateRecord := True;
 end;
 
-function DeleteRecord(var db: TDatabase; id: LongInt): Boolean;
+function DeleteRecord(var db: TDatabase; id: TLong): Boolean;
 var
   data: array[0..65535] of Byte;
-  values: array[0..9] of LongInt;
-  count: Integer;
-  firstPage: LongInt;
-  pagesNeeded: Integer;
+  values: array[0..9] of TLong;
+  count: TInt;
+  firstPage: TLong;
+  pagesNeeded: TInt;
   entry: TDBJournalEntry;
-  i: Integer;
+  i: TInt;
 begin
   DeleteRecord := False;
 
@@ -1455,8 +1457,8 @@ end;
 
 function AddIndex(var db: TDatabase; fieldName: String; indexType: TDBIndexType): Boolean;
 var
-  indexNum: Integer;
-  i: Integer;
+  indexNum: TInt;
+  i: TInt;
 begin
   AddIndex := False;
 
@@ -1508,13 +1510,13 @@ begin
   AddIndex := True;
 end;
 
-function RebuildIndex(var db: TDatabase; indexNumber: Integer): Boolean;
+function RebuildIndex(var db: TDatabase; indexNumber: TInt): Boolean;
 var
   page: TDBPage;
-  pageNum: LongInt;
-  fileSize: LongInt;
-  recordID: LongInt;
-  firstPage: LongInt;
+  pageNum: TLong;
+  fileSize: TLong;
+  recordID: TLong;
+  firstPage: TLong;
   tree: TBTree;
 begin
   RebuildIndex := False;
@@ -1577,7 +1579,7 @@ end;
 
 function RebuildAllIndexes(var db: TDatabase): Boolean;
 var
-  i: Integer;
+  i: TInt;
 begin
   RebuildAllIndexes := False;
 
@@ -1600,17 +1602,17 @@ end;
 function CompactDatabase(var db: TDatabase): Boolean;
 var
   page: TDBPage;
-  pageNum, newPageNum: LongInt;
-  fileSize: LongInt;
-  recordID: LongInt;
+  pageNum, newPageNum: TLong;
+  fileSize: TLong;
+  recordID: TLong;
   data: array[0..65535] of Byte;
-  pagesNeeded: Integer;
-  i: Integer;
+  pagesNeeded: TInt;
+  i: TInt;
   mapping: array[0..10000] of record
-    oldPage: LongInt;
-    newPage: LongInt;
+    oldPage: TLong;
+    newPage: TLong;
   end;
-  mapCount: Integer;
+  mapCount: TInt;
 begin
   CompactDatabase := False;
 
@@ -1701,15 +1703,15 @@ end;
 
 function ValidateDatabase(var db: TDatabase): Boolean;
 var
-  i: Integer;
+  i: TInt;
   page: TDBPage;
-  pageNum: LongInt;
-  fileSize: LongInt;
-  activeCount: LongInt;
-  freeCount: LongInt;
-  recordID: LongInt;
-  values: array[0..9] of LongInt;
-  count: Integer;
+  pageNum: TLong;
+  fileSize: TLong;
+  activeCount: TLong;
+  freeCount: TLong;
+  recordID: TLong;
+  values: array[0..9] of TLong;
+  count: TInt;
   valid: Boolean;
 begin
   ValidateDatabase := False;

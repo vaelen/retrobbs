@@ -12,6 +12,13 @@ unit BBSTypes;
 
 interface
 
+{ Explicitly-Sized Integer Types }
+type
+  TWord = Word;          { Always 16-bit unsigned (0-65535) }
+  TInt = SmallInt;       { Always 16-bit signed (-32768 to 32767) }
+  TLong = LongInt;       { Always 32-bit signed }
+  TLongWord = LongWord;  { Always 32-bit unsigned }
+
 { Custom String Types }
 type
   Str255 = String[255];  { Used for long strings }
@@ -21,8 +28,8 @@ type
 
 { User and System Types }
 type
-  TUserID = Word;        { Unique user identifier (0-65535) }
-  TBBSTimestamp = LongInt;  { Seconds since 1/1/1904 (Mac Epoch) }
+  TUserID = TWord;       { Unique user identifier (0-65535) }
+  TBBSTimestamp = TLong; { Seconds since 1/1/1904 (Mac Epoch) }
 
 { Epoch Conversion Constants }
 const
@@ -34,19 +41,19 @@ const
 { Helper Functions }
 
 { Converts Unix epoch timestamp (1/1/1970) to Mac epoch timestamp (1/1/1904) }
-function UnixToMacEpoch(unixTime: LongInt): LongInt;
+function UnixToMacEpoch(unixTime: TLong): TLong;
 
 { Converts Mac epoch timestamp (1/1/1904) to Unix epoch timestamp (1/1/1970) }
-function MacToUnixEpoch(macTime: LongInt): LongInt;
+function MacToUnixEpoch(macTime: TLong): TLong;
 
 implementation
 
-function UnixToMacEpoch(unixTime: LongInt): LongInt;
+function UnixToMacEpoch(unixTime: TLong): TLong;
 begin
   UnixToMacEpoch := unixTime + EPOCH_DELTA;
 end;
 
-function MacToUnixEpoch(macTime: LongInt): LongInt;
+function MacToUnixEpoch(macTime: TLong): TLong;
 begin
   MacToUnixEpoch := macTime - EPOCH_DELTA;
 end;

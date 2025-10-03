@@ -12,44 +12,47 @@ unit Hash;
 
 interface
 
+uses
+  BBSTypes;
+
 { CRC-16/KERMIT (CCITT) Functions }
-function CRC16(const data; len: Integer): Word;
-function CRC16Start(var crc: Word; const data; len: Integer): Word;
-function CRC16Add(var crc: Word; const data; len: Integer): Word;
-function CRC16End(var crc: Word): Word;
+function CRC16(const data; len: TInt): TWord;
+function CRC16Start(var crc: TWord; const data; len: TInt): TWord;
+function CRC16Add(var crc: TWord; const data; len: TInt): TWord;
+function CRC16End(var crc: TWord): TWord;
 
 { CRC-16/XMODEM (ZMODEM) Functions }
-function CRC16X(const data; len: Integer): Word;
-function CRC16XStart(var crc: Word; const data; len: Integer): Word;
-function CRC16XAdd(var crc: Word; const data; len: Integer): Word;
-function CRC16XEnd(var crc: Word): Word;
+function CRC16X(const data; len: TInt): TWord;
+function CRC16XStart(var crc: TWord; const data; len: TInt): TWord;
+function CRC16XAdd(var crc: TWord; const data; len: TInt): TWord;
+function CRC16XEnd(var crc: TWord): TWord;
 
 { CRC-32/CKSUM (POSIX) Functions }
-function CRC32(const data; len: Integer): LongWord;
-function CRC32Start(var crc: LongWord; var totalLen: LongWord; const data; len: Integer): LongWord;
-function CRC32Add(var crc: LongWord; var totalLen: LongWord; const data; len: Integer): LongWord;
-function CRC32End(var crc: LongWord; totalLen: LongWord): LongWord;
+function CRC32(const data; len: TInt): TLongWord;
+function CRC32Start(var crc: TLongWord; var totalLen: TLongWord; const data; len: TInt): TLongWord;
+function CRC32Add(var crc: TLongWord; var totalLen: TLongWord; const data; len: TInt): TLongWord;
+function CRC32End(var crc: TLongWord; totalLen: TLongWord): TLongWord;
 
 { SHA-1 Hash Functions }
 type
   TSHA1Digest = array[0..19] of Byte;
   TSHA1Context = record
-    h0, h1, h2, h3, h4: LongWord;
+    h0, h1, h2, h3, h4: TLongWord;
     messageLen: QWord;
-    bufferLen: Integer;
+    bufferLen: TInt;
     buffer: array[0..63] of Byte;
   end;
 
-function SHA1(const data; len: Integer): TSHA1Digest;
+function SHA1(const data; len: TInt): TSHA1Digest;
 procedure SHA1Start(var ctx: TSHA1Context);
-procedure SHA1Add(var ctx: TSHA1Context; const data; len: Integer);
+procedure SHA1Add(var ctx: TSHA1Context; const data; len: TInt);
 procedure SHA1End(var ctx: TSHA1Context; var digest: TSHA1Digest);
 
 implementation
 
 const
   { CRC-16/KERMIT (CCITT) Table }
-  CRC16_KERMIT_TABLE: array[0..255] of Word = (
+  CRC16_KERMIT_TABLE: array[0..255] of TWord = (
     $0000, $1189, $2312, $329B, $4624, $57AD, $6536, $74BF,
     $8C48, $9DC1, $AF5A, $BED3, $CA6C, $DBE5, $E97E, $F8F7,
     $1081, $0108, $3393, $221A, $56A5, $472C, $75B7, $643E,
@@ -85,7 +88,7 @@ const
   );
 
   { CRC-16/XMODEM (ZMODEM) Table }
-  CRC16_XMODEM_TABLE: array[0..255] of Word = (
+  CRC16_XMODEM_TABLE: array[0..255] of TWord = (
     $0000, $1021, $2042, $3063, $4084, $50A5, $60C6, $70E7,
     $8108, $9129, $A14A, $B16B, $C18C, $D1AD, $E1CE, $F1EF,
     $1231, $0210, $3273, $2252, $52B5, $4294, $72F7, $62D6,
@@ -121,7 +124,7 @@ const
   );
 
   { CRC-32/CKSUM (POSIX) Table }
-  CRC32_TABLE: array[0..255] of LongWord = (
+  CRC32_TABLE: array[0..255] of TLongWord = (
     $00000000, $04C11DB7, $09823B6E, $0D4326D9, $130476DC, $17C56B6B, $1A864DB2, $1E475005,
     $2608EDB8, $22C9F00F, $2F8AD6D6, $2B4BCB61, $350C9B64, $31CD86D3, $3C8EA00A, $384FBDBD,
     $4C11DB70, $48D0C6C7, $4593E01E, $4152FDA9, $5F15ADAC, $5BD4B01B, $569796C2, $52568B75,
@@ -160,7 +163,7 @@ const
 {
 function ReflectByte(b: Byte): Byte;
 var
-  i: Integer;
+  i: TInt;
   r: Byte;
 begin
   r := 0;
@@ -172,10 +175,10 @@ begin
   ReflectByte := r;
 end;
 
-function ReflectWord(w: Word): Word;
+function ReflectWord(w: TWord): TWord;
 var
-  i: Integer;
-  r: Word;
+  i: TInt;
+  r: TWord;
 begin
   r := 0;
   for i := 0 to 15 do
@@ -189,25 +192,25 @@ end;
 
 { CRC-16/KERMIT (CCITT) Implementation }
 
-function CRC16(const data; len: Integer): Word;
+function CRC16(const data; len: TInt): TWord;
 var
-  crc: Word;
+  crc: TWord;
 begin
   CRC16Start(crc, data, len);
   CRC16 := CRC16End(crc);
 end;
 
-function CRC16Start(var crc: Word; const data; len: Integer): Word;
+function CRC16Start(var crc: TWord; const data; len: TInt): TWord;
 begin
   crc := $0000;
   CRC16Start := CRC16Add(crc, data, len);
 end;
 
-function CRC16Add(var crc: Word; const data; len: Integer): Word;
+function CRC16Add(var crc: TWord; const data; len: TInt): TWord;
 type
   PByte = ^Byte;
 var
-  i: Integer;
+  i: TInt;
   idx: Byte;
   p: PByte;
 begin
@@ -221,32 +224,32 @@ begin
   CRC16Add := crc;
 end;
 
-function CRC16End(var crc: Word): Word;
+function CRC16End(var crc: TWord): TWord;
 begin
   CRC16End := crc;
 end;
 
 { CRC-16/XMODEM (ZMODEM) Implementation }
 
-function CRC16X(const data; len: Integer): Word;
+function CRC16X(const data; len: TInt): TWord;
 var
-  crc: Word;
+  crc: TWord;
 begin
   CRC16XStart(crc, data, len);
   CRC16X := CRC16XEnd(crc);
 end;
 
-function CRC16XStart(var crc: Word; const data; len: Integer): Word;
+function CRC16XStart(var crc: TWord; const data; len: TInt): TWord;
 begin
   crc := $0000;
   CRC16XStart := CRC16XAdd(crc, data, len);
 end;
 
-function CRC16XAdd(var crc: Word; const data; len: Integer): Word;
+function CRC16XAdd(var crc: TWord; const data; len: TInt): TWord;
 type
   PByte = ^Byte;
 var
-  i: Integer;
+  i: TInt;
   idx: Byte;
   p: PByte;
 begin
@@ -260,34 +263,34 @@ begin
   CRC16XAdd := crc;
 end;
 
-function CRC16XEnd(var crc: Word): Word;
+function CRC16XEnd(var crc: TWord): TWord;
 begin
   CRC16XEnd := crc;
 end;
 
 { CRC-32/CKSUM (POSIX) Implementation }
 
-function CRC32(const data; len: Integer): LongWord;
+function CRC32(const data; len: TInt): TLongWord;
 var
-  crc: LongWord;
-  totalLen: LongWord;
+  crc: TLongWord;
+  totalLen: TLongWord;
 begin
   CRC32Start(crc, totalLen, data, len);
   CRC32 := CRC32End(crc, totalLen);
 end;
 
-function CRC32Start(var crc: LongWord; var totalLen: LongWord; const data; len: Integer): LongWord;
+function CRC32Start(var crc: TLongWord; var totalLen: TLongWord; const data; len: TInt): TLongWord;
 begin
   crc := $00000000;
   totalLen := 0;
   CRC32Start := CRC32Add(crc, totalLen, data, len);
 end;
 
-function CRC32Add(var crc: LongWord; var totalLen: LongWord; const data; len: Integer): LongWord;
+function CRC32Add(var crc: TLongWord; var totalLen: TLongWord; const data; len: TInt): TLongWord;
 type
   PByte = ^Byte;
 var
-  i: Integer;
+  i: TInt;
   idx: Byte;
   p: PByte;
 begin
@@ -302,9 +305,9 @@ begin
   CRC32Add := crc;
 end;
 
-function CRC32End(var crc: LongWord; totalLen: LongWord): LongWord;
+function CRC32End(var crc: TLongWord; totalLen: TLongWord): TLongWord;
 var
-  i: Integer;
+  i: TInt;
 begin
   { For POSIX cksum, append length }
   for i := 0 to 3 do
@@ -317,7 +320,7 @@ end;
 { SHA-1 Implementation }
 
 { Helper function to rotate left }
-function RotateLeft(value: LongWord; bits: Integer): LongWord; inline;
+function RotateLeft(value: TLongWord; bits: TInt): TLongWord;
 begin
   RotateLeft := (value shl bits) or (value shr (32 - bits));
 end;
@@ -325,17 +328,17 @@ end;
 { Process a 512-bit block }
 procedure SHA1ProcessBlock(var ctx: TSHA1Context);
 var
-  w: array[0..79] of LongWord;
-  a, b, c, d, e, f, k, temp: LongWord;
-  i, t: Integer;
+  w: array[0..79] of TLongWord;
+  a, b, c, d, e, f, k, temp: TLongWord;
+  i, t: TInt;
 begin
   { Prepare message schedule }
   for i := 0 to 15 do
   begin
-    w[i] := (LongWord(ctx.buffer[i * 4]) shl 24) or
-            (LongWord(ctx.buffer[i * 4 + 1]) shl 16) or
-            (LongWord(ctx.buffer[i * 4 + 2]) shl 8) or
-            LongWord(ctx.buffer[i * 4 + 3]);
+    w[i] := (TLongWord(ctx.buffer[i * 4]) shl 24) or
+            (TLongWord(ctx.buffer[i * 4 + 1]) shl 16) or
+            (TLongWord(ctx.buffer[i * 4 + 2]) shl 8) or
+            TLongWord(ctx.buffer[i * 4 + 3]);
   end;
 
   for i := 16 to 79 do
@@ -401,12 +404,12 @@ begin
   ctx.bufferLen := 0;
 end;
 
-procedure SHA1Add(var ctx: TSHA1Context; const data; len: Integer);
+procedure SHA1Add(var ctx: TSHA1Context; const data; len: TInt);
 type
   PByte = ^Byte;
 var
   p: PByte;
-  i: Integer;
+  i: TInt;
 begin
   p := @data;
 
@@ -428,7 +431,7 @@ end;
 
 procedure SHA1End(var ctx: TSHA1Context; var digest: TSHA1Digest);
 var
-  i: Integer;
+  i: TInt;
   bitLen: QWord;
 begin
   { Append padding }
@@ -478,7 +481,7 @@ begin
   end;
 end;
 
-function SHA1(const data; len: Integer): TSHA1Digest;
+function SHA1(const data; len: TInt): TSHA1Digest;
 var
   ctx: TSHA1Context;
   digest: TSHA1Digest;

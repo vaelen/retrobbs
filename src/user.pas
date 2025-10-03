@@ -33,7 +33,7 @@ type
     FullName: Str63;     { Real Name }
     Email: Str63;        { Email Address }
     Location: Str63;     { Physical Location }
-    Access: Word;        { Access Control Bitmask }
+    Access: TWord;        { Access Control Bitmask }
   end;
 
 var
@@ -85,7 +85,7 @@ function HashPassword(password: Str63): SHA1Hash;
 { Access Control Functions }
 
 { Check if user has specific access bit set }
-function HasAccess(user: TUser; accessBit: Word): Boolean;
+function HasAccess(user: TUser; accessBit: TWord): Boolean;
 
 { Check if user is a sysop }
 function IsSysop(user: TUser): Boolean;
@@ -99,10 +99,10 @@ uses
 function ParseUserLine(line: Str255; var user: TUser): Boolean;
 var
   parts: array[0..6] of Str63;
-  partCount: Integer;
+  partCount: TInt;
   currentPart: Str63;
   ch: Char;
-  i: Integer;
+  i: TInt;
 begin
   ParseUserLine := False;
 
@@ -577,7 +577,8 @@ var
   saltedPassword: Str255;
   data: array[0..254] of Byte;
   digest: TSHA1Digest;
-  i: Integer;
+  i: TInt;
+  hexStr: String;
 begin
   { Concatenate password with salt }
   saltedPassword := password + Salt;
@@ -590,9 +591,10 @@ begin
   digest := SHA1(data, Length(saltedPassword));
 
   { Convert to hex string }
-  HashPassword := '';
+  hexStr := '';
   for i := 0 to 19 do
-    HashPassword := HashPassword + LowerCase(IntToHex(digest[i], 2));
+    hexStr := hexStr + LowerCase(IntToHex(digest[i], 2));
+  HashPassword := hexStr;
 end;
 
 function AuthenticateUser(name: Str63; password: Str63): Boolean;
@@ -639,7 +641,7 @@ end;
 
 { Access Control Functions }
 
-function HasAccess(user: TUser; accessBit: Word): Boolean;
+function HasAccess(user: TUser; accessBit: TWord): Boolean;
 begin
   HasAccess := (user.Access and accessBit) <> 0;
 end;

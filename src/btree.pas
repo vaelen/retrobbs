@@ -4,7 +4,7 @@ unit BTree;
   File-Based B-Tree Implementation
 
   A B-Tree index stored in a file using 512-byte pages.
-  Keys and values are both LongInt (4 bytes).
+  Keys and values are both TLong (4 bytes).
   Supports overflow pages when a key has many values.
 
   Copyright 2025, Andrew C. Young <andrew@vaelen.org>
@@ -23,8 +23,8 @@ const
   MAX_OVERFLOW = 120;   { Maximum values in an overflow page }
 
 type
-  TPageNum = LongInt;
-  TKeyValue = LongInt;
+  TPageNum = TLong;
+  TKeyValue = TLong;
 
   { Page types }
   TPageType = (ptNone, ptHeader, ptInternal, ptLeaf, ptOverflow);
@@ -32,11 +32,11 @@ type
   { B-Tree header (stored in page 0) }
   TBTreeHeader = record
     Magic: array[0..3] of Char;  { 'BTRE' magic number }
-    Version: Word;                { Format version }
-    Order: Word;                  { B-Tree order (max children) }
+    Version: TWord;                { Format version }
+    Order: TWord;                  { B-Tree order (max children) }
     RootPage: TPageNum;          { Root node page number }
     NextFreePage: TPageNum;      { Next available page }
-    PageCount: LongInt;          { Total pages in file }
+    PageCount: TLong;          { Total pages in file }
   end;
 
   { Internal node entry }
@@ -48,7 +48,7 @@ type
   { Leaf entry with overflow support }
   TLeafEntry = record
     Key: TKeyValue;
-    ValueCount: Word;
+    ValueCount: TWord;
     Values: array[0..MAX_VALUES-1] of TKeyValue;
     OverflowPage: TPageNum;  { 0 if no overflow }
   end;
@@ -77,7 +77,7 @@ function Insert(var tree: TBTree; key: TKeyValue; value: TKeyValue): Boolean;
 
 { Find all values for a key }
 function Find(var tree: TBTree; key: TKeyValue; var values: array of TKeyValue;
-              var count: Integer): Boolean;
+              var count: TInt): Boolean;
 
 { Delete a key and all its values }
 function Delete(var tree: TBTree; key: TKeyValue): Boolean;
@@ -105,7 +105,7 @@ type
   PInternalNode = ^TInternalNode;
   TInternalNode = record
     PageType: TPageType;
-    KeyCount: Word;
+    KeyCount: TWord;
     Keys: array[0..MAX_KEYS-1] of TKeyValue;
     Children: array[0..MAX_KEYS] of TPageNum;  { n+1 children for n keys }
   end;
@@ -113,7 +113,7 @@ type
   PLeafNode = ^TLeafNode;
   TLeafNode = record
     PageType: TPageType;
-    KeyCount: Word;
+    KeyCount: TWord;
     NextLeaf: TPageNum;  { For range queries }
     Entries: array[0..MAX_KEYS-1] of TLeafEntry;
   end;
@@ -121,7 +121,7 @@ type
   POverflowPage = ^TOverflowPage;
   TOverflowPage = record
     PageType: TPageType;
-    ValueCount: Word;
+    ValueCount: TWord;
     NextOverflow: TPageNum;
     Values: array[0..MAX_OVERFLOW-1] of TKeyValue;
   end;
@@ -138,7 +138,7 @@ end;
 procedure WriteHeader(var tree: TBTree);
 var
   page: array[0..PAGE_SIZE-1] of Byte;
-  i: Integer;
+  i: TInt;
 begin
   FillChar(page, PAGE_SIZE, 0);
 
@@ -159,7 +159,7 @@ end;
 procedure ReadHeader(var tree: TBTree);
 var
   page: array[0..PAGE_SIZE-1] of Byte;
-  i: Integer;
+  i: TInt;
 begin
   Seek(tree.FileHandle, 0);
   BlockRead(tree.FileHandle, page, PAGE_SIZE);
@@ -177,8 +177,8 @@ end;
 procedure WriteLeafNode(var tree: TBTree; pageNum: TPageNum; var node: TLeafNode);
 var
   page: array[0..PAGE_SIZE-1] of Byte;
-  offset: Integer;
-  i, j: Integer;
+  offset: TInt;
+  i, j: TInt;
 begin
   FillChar(page, PAGE_SIZE, 0);
 
@@ -211,8 +211,8 @@ end;
 procedure ReadLeafNode(var tree: TBTree; pageNum: TPageNum; var node: TLeafNode);
 var
   page: array[0..PAGE_SIZE-1] of Byte;
-  offset: Integer;
-  i, j: Integer;
+  offset: TInt;
+  i, j: TInt;
 begin
   Seek(tree.FileHandle, pageNum * PAGE_SIZE);
   BlockRead(tree.FileHandle, page, PAGE_SIZE);
@@ -329,7 +329,7 @@ end;
 function Insert(var tree: TBTree; key: TKeyValue; value: TKeyValue): Boolean;
 var
   rootNode: TLeafNode;
-  i, j: Integer;
+  i, j: TInt;
   found: Boolean;
 begin
   Insert := False;
@@ -383,10 +383,10 @@ begin
 end;
 
 function Find(var tree: TBTree; key: TKeyValue; var values: array of TKeyValue;
-              var count: Integer): Boolean;
+              var count: TInt): Boolean;
 var
   rootNode: TLeafNode;
-  i, j: Integer;
+  i, j: TInt;
 begin
   Find := False;
   count := 0;
@@ -419,7 +419,7 @@ end;
 function Delete(var tree: TBTree; key: TKeyValue): Boolean;
 var
   rootNode: TLeafNode;
-  i, j: Integer;
+  i, j: TInt;
 begin
   Delete := False;
 
@@ -448,7 +448,7 @@ end;
 function DeleteValue(var tree: TBTree; key: TKeyValue; value: TKeyValue): Boolean;
 var
   rootNode: TLeafNode;
-  i, j, k: Integer;
+  i, j, k: TInt;
 begin
   DeleteValue := False;
 
@@ -496,8 +496,8 @@ function StringKey(s: Str255): TKeyValue;
 var
   lowerStr: Str255;
   data: array[0..254] of Byte;
-  i: Integer;
-  crc: Word;
+  i: TInt;
+  crc: TWord;
 begin
   { Convert to lowercase }
   lowerStr := LowerCase(s);
@@ -509,8 +509,8 @@ begin
   { Calculate CRC16 }
   crc := CRC16(data, Length(lowerStr));
 
-  { Convert to LongInt (zero-extend the Word) }
-  StringKey := LongInt(crc);
+  { Convert to TLong (zero-extend the Word) }
+  StringKey := TLong(crc);
 end;
 
 end.

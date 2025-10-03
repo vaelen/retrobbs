@@ -5,7 +5,7 @@
 FPC = fpc
 
 # Compiler flags
-FPCFLAGS = -O2 -Xs -XX -CX -Fu$(SRC_DIR)
+FPCFLAGS = -MTP -O2 -Xs -XX -CX -Fu$(SRC_DIR)
 
 # Directories
 SRC_DIR = src

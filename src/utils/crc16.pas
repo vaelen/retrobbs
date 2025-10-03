@@ -14,7 +14,7 @@ program CRC16Util;
 }
 
 uses
-  Hash, SysUtils;
+  BBSTypes, Hash, SysUtils;
 
 const
   BUFFER_SIZE = 4096;
@@ -22,14 +22,14 @@ const
 var
   f: File of Byte;
   buffer: array[0..BUFFER_SIZE-1] of Byte;
-  bytesRead: Integer;
-  crc: Word;
-  i: Integer;
+  bytesRead: TInt;
+  crc: TWord;
+  i: TInt;
   idx: Byte;
 
 const
   { CRC-16/KERMIT (CCITT) Table }
-  CRC16_KERMIT_TABLE: array[0..255] of Word = (
+  CRC16_KERMIT_TABLE: array[0..255] of TWord = (
     $0000, $1189, $2312, $329B, $4624, $57AD, $6536, $74BF,
     $8C48, $9DC1, $AF5A, $BED3, $CA6C, $DBE5, $E97E, $F8F7,
     $1081, $0108, $3393, $221A, $56A5, $472C, $75B7, $643E,

@@ -14,7 +14,7 @@ The `User` record contains the following fields:
 | FullName | Str63      | Real Name              |
 | Email    | Str63      | Email Address          |
 | Location | Str63      | Physical Location      |
-| Access   | Word       | Access Control Bitmask |
+| Access   | TWord       | Access Control Bitmask |
 
 **Note:** The Access Control Bitmask provides 16 separate ACL "groups" that the user can belong to. These are, in turn, used elsewhere to control access to specific areas. The most significant bit is the Sysop bit.
 

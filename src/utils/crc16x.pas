@@ -14,7 +14,7 @@ program CRC16XUtil;
 }
 
 uses
-  Hash, SysUtils;
+  BBSTypes, Hash, SysUtils;
 
 const
   BUFFER_SIZE = 4096;
@@ -22,14 +22,14 @@ const
 var
   f: File of Byte;
   buffer: array[0..BUFFER_SIZE-1] of Byte;
-  bytesRead: Integer;
-  crc: Word;
-  i: Integer;
+  bytesRead: TInt;
+  crc: TWord;
+  i: TInt;
   idx: Byte;
 
 const
   { CRC-16/XMODEM (ZMODEM) Table }
-  CRC16X_TABLE: array[0..255] of Word = (
+  CRC16X_TABLE: array[0..255] of TWord = (
     $0000, $1021, $2042, $3063, $4084, $50A5, $60C6, $70E7,
     $8108, $9129, $A14A, $B16B, $C18C, $D1AD, $E1CE, $F1EF,
     $1231, $0210, $3273, $2252, $52B5, $4294, $72F7, $62D6,

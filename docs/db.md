@@ -9,7 +9,6 @@ RetroBBS data files are binary files organized into fixed-size 512-byte pages. T
 **Note: Data files are not guaranteed to be readable by a RetroBBS instance running on a different operating system than the one that originally created the data file. This is especially true when moving between 16, 32, and 64 bit systems. Cross-platform compatibility issues include:**
 - **Endianness**: Big-endian vs little-endian byte order
 - **Record alignment**: Different compilers may pad records differently
-- **Integer sizes**: Integer may be 16-bit on old systems, 32-bit on modern ones
 
 **Recommendation**: Always use explicit byte-by-byte serialization (like the BTree unit does) rather than direct record writes for true cross-platform compatibility.
 
@@ -38,11 +37,11 @@ The database header spans the first two pages of the `.DAT` file. Page 0 contain
 | Name            | Type                          | Notes                                      |
 | --------------- | ----------------------------- | ------------------------------------------ |
 | Signature       | array[0..7] of Char           | 'RETRODB' + #0 for file type validation    |
-| Version         | Word                          | Format version (currently 1)               |
-| PageSize        | Word                          | Size of each page in bytes (always 512)    |
-| RecordSize      | Word                          | Size of each record in bytes (1-130050)    |
-| RecordCount     | LongInt                       | Total number of active records             |
-| NextRecordID    | LongInt                       | Next available Record ID                   |
+| Version         | TWord                          | Format version (currently 1)               |
+| PageSize        | TWord                          | Size of each page in bytes (always 512)    |
+| RecordSize      | TWord                          | Size of each record in bytes (1-130050)    |
+| RecordCount     | TLong                       | Total number of active records             |
+| NextRecordID    | TLong                       | Next available Record ID                   |
 | LastCompacted   | TBBSTimestamp                 | Timestamp of last compaction operation     |
 | JournalPending  | Boolean                       | True if journal needs replay on open       |
 | IndexCount      | Byte                          | Number of secondary indexes (0-15)         |
@@ -59,15 +58,15 @@ The database header spans the first two pages of the `.DAT` file. Page 0 contain
 
 | Name            | Type                          | Notes                                      |
 | --------------- | ----------------------------- | ------------------------------------------ |
-| FreePageCount   | Word (2 bytes)                | Total count of free pages in database      |
-| FreePageListLen | Word (2 bytes)                | Number of entries in FreePages array (0-127)|
-| FreePages       | array[0..126] of LongInt      | Page numbers of empty pages (508 bytes)    |
+| FreePageCount   | TWord (2 bytes)                | Total count of free pages in database      |
+| FreePageListLen | TWord (2 bytes)                | Number of entries in FreePages array (0-127)|
+| FreePages       | array[0..126] of TLong      | Page numbers of empty pages (508 bytes)    |
 
 **TDBIndexInfo** (in page 0, after header):
 | Name          | Type           | Notes                                           |
 | ------------- | -------------- | ----------------------------------------------- |
 | FieldName     | String[29]     | The name of the field being indexed (30 bytes)  |
-| IndexType     | Byte           | 0 = itID (LongInt), 1 = itString (Str63)        |
+| IndexType     | Byte           | 0 = itID (TLong), 1 = itString (Str63)        |
 | IndexNumber   | Byte           | Maps to one of the `I??` files (00-14)          |
 
 **TDBIndexInfo Size**: 30 bytes (String[29] = 1 length byte + 29 data bytes) + 1 byte (IndexType) + 1 byte (IndexNumber) = 32 bytes exactly
@@ -75,7 +74,7 @@ The database header spans the first two pages of the `.DAT` file. Page 0 contain
 **Page 0 Layout**: 32 bytes (header) + 480 bytes (15 indexes × 32 bytes) = 512 bytes
 
 **Index Type Values**:
-- **0 (itID)**: Index on a LongInt field
+- **0 (itID)**: Index on a TLong field
 - **1 (itString)**: Index on a Str63 field
 
 **Signature**: Used to verify file format. Always 'RETRODB' followed by null terminator.
@@ -90,7 +89,7 @@ The database header spans the first two pages of the `.DAT` file. Page 0 contain
 
 **RecordSize**: Size of each record in bytes. All records in this database are the same size. This determines how many pages each record occupies:
 - **PagesPerRecord** = ceiling(RecordSize / 506)
-- Maximum: 65535 bytes (limited by Word), which is ~130 pages
+- Maximum: 65535 bytes (limited by TWord), which is ~130 pages
 - Examples: 100 byte record = 1 page, 1000 byte record = 2 pages
 
 **Compaction**: The process of removing empty pages and rebuilding indexes to reclaim disk space. The `LastCompacted` field tracks when this was last done.
@@ -121,7 +120,7 @@ Records may span multiple consecutive pages depending on `RecordSize`:
 
 | Name   | Type                   | Notes                                    |
 | ------ | ---------------------- | ---------------------------------------- |
-| ID     | LongInt (4 bytes)      | Unique record identifier                 |
+| ID     | TLong (4 bytes)      | Unique record identifier                 |
 | Status | Byte (1 byte)          | 0 = Empty, 1 = Active, 2 = Continuation  |
 | Data   | array[0..506] of Byte  | Actual record data (506 bytes per page)  |
 
@@ -150,7 +149,7 @@ Records may span multiple consecutive pages depending on `RecordSize`:
 The `.IDX` file is a B-Tree index (as defined by the `BTree` unit) that maps Record IDs to Page Numbers.
 
 **Index Structure**:
-- **Keys**: Record IDs (LongInt values from `TDBPage.ID`)
+- **Keys**: Record IDs (TLong values from `TDBPage.ID`)
 - **Values**: Page Numbers (physical page number of the first page where record starts)
 - **Purpose**: Translates logical Record IDs to physical page locations
 
@@ -185,10 +184,10 @@ The journal file (`<database>.jnl`) contains pending operations that have not ye
 | Name      | Type                   | Notes                                           |
 | --------- | ---------------------- | ----------------------------------------------- |
 | Operation | Byte                   | 0 = None/Empty, 1 = Update, 2 = Delete, 3 = Add |
-| PageNum   | LongInt (4 bytes)      | Page being modified, -1 for Add operations      |
-| RecordID  | LongInt (4 bytes)      | Record ID for verification                      |
+| PageNum   | TLong (4 bytes)      | Page being modified, -1 for Add operations      |
+| RecordID  | TLong (4 bytes)      | Record ID for verification                      |
 | Data      | array[0..506] of Byte  | New record data (for Update and Add)            |
-| Checksum  | Word (2 bytes)         | CRC16 of Operation + PageNum + RecordID + Data  |
+| Checksum  | TWord (2 bytes)         | CRC16 of Operation + PageNum + RecordID + Data  |
 
 **Journal Entry Size**: 1 + 4 + 4 + 507 + 2 = 518 bytes
 
@@ -423,20 +422,20 @@ The `DB` unit should provide high-level helper methods to encapsulate these oper
 - Closes all open files
 - Writes any cached metadata
 
-**`CreateDatabase(name: Str63; blockSize: Word): Boolean`**
+**`CreateDatabase(name: Str63; blockSize: TWord): Boolean`**
 - Creates new .INF, .DAT, and .IDX files
 - Initializes with default values
 - Returns true on success
 
 ### Record Operations
 
-**`AddRecord(var db: TDatabase; data: array of Byte; var recordID: LongInt): Boolean`**
+**`AddRecord(var db: TDatabase; data: array of Byte; var recordID: TLong): Boolean`**
 - Finds free block or allocates new one
 - Writes data to .DAT file
 - Updates all indexes
 - Returns new record ID
 
-**`FindRecordByID(var db: TDatabase; id: LongInt; var data: array of Byte): Boolean`**
+**`FindRecordByID(var db: TDatabase; id: TLong; var data: array of Byte): Boolean`**
 - Uses ID index to locate block
 - Reads and returns record data
 - Returns true if found
@@ -447,13 +446,13 @@ The `DB` unit should provide high-level helper methods to encapsulate these oper
 - Handles hash collisions
 - Returns first matching record
 
-**`UpdateRecord(var db: TDatabase; id: LongInt; data: array of Byte): Boolean`**
+**`UpdateRecord(var db: TDatabase; id: TLong; data: array of Byte): Boolean`**
 - Finds record by ID
 - Overwrites data in existing block
 - Updates indexes if indexed fields changed
 - Returns true on success
 
-**`DeleteRecord(var db: TDatabase; id: LongInt): Boolean`**
+**`DeleteRecord(var db: TDatabase; id: TLong): Boolean`**
 - Marks block as empty
 - Removes from all indexes
 - Returns true on success
@@ -531,11 +530,11 @@ type
 
   TDBHeader = record
     Signature: array[0..7] of Char;      { 'RETRODB' + #0 }
-    Version: Word;                        { Format version (1) }
-    PageSize: Word;                       { Size of each page (always 512) }
-    RecordSize: Word;                     { Size of each record in bytes }
-    RecordCount: LongInt;                 { Total active records }
-    NextRecordID: LongInt;                { Next available Record ID }
+    Version: TWord;                        { Format version (1) }
+    PageSize: TWord;                       { Size of each page (always 512) }
+    RecordSize: TWord;                     { Size of each record in bytes }
+    RecordCount: TLong;                 { Total active records }
+    NextRecordID: TLong;                { Next available Record ID }
     LastCompacted: TBBSTimestamp;         { Timestamp of last compaction }
     JournalPending: Boolean;              { True if journal needs replay }
     IndexCount: Byte;                     { Number of secondary indexes (0-15) }
@@ -544,23 +543,23 @@ type
   end;
 
   TDBFreeList = record
-    FreePageCount: Word;                  { Total count of free pages in DB }
-    FreePageListLen: Word;                { Number of entries in FreePages array }
-    FreePages: array[0..126] of LongInt;  { Page numbers of empty pages }
+    FreePageCount: TWord;                  { Total count of free pages in DB }
+    FreePageListLen: TWord;                { Number of entries in FreePages array }
+    FreePages: array[0..126] of TLong;  { Page numbers of empty pages }
   end;
 
   TDBPage = record
-    ID: LongInt;       { Record ID }
+    ID: TLong;       { Record ID }
     Status: Byte;      { 0 = Empty, 1 = Active, 2 = Continuation }
     Data: array[0..506] of Byte;
   end;
 
   TDBJournalEntry = record
     Operation: Byte;  { 0 = None, 1 = Update, 2 = Delete, 3 = Add }
-    PageNum: LongInt;
-    RecordID: LongInt;
+    PageNum: TLong;
+    RecordID: TLong;
     Data: array[0..506] of Byte;
-    Checksum: Word;
+    Checksum: TWord;
   end;
 
   TDatabase = record

@@ -14,7 +14,7 @@ program CRC32Util;
 }
 
 uses
-  Hash, SysUtils;
+  BBSTypes, Hash, SysUtils;
 
 const
   BUFFER_SIZE = 4096;
@@ -22,13 +22,13 @@ const
 var
   f: File of Byte;
   buffer: array[0..BUFFER_SIZE-1] of Byte;
-  bytesRead: Integer;
-  crc: LongWord;
-  totalLen: LongWord;
+  bytesRead: TInt;
+  crc: TLongWord;
+  totalLen: TLongWord;
 
 const
   { CRC-32/CKSUM (POSIX) Table }
-  CRC32_TABLE: array[0..255] of LongWord = (
+  CRC32_TABLE: array[0..255] of TLongWord = (
     $00000000, $04C11DB7, $09823B6E, $0D4326D9, $130476DC, $17C56B6B, $1A864DB2, $1E475005,
     $2608EDB8, $22C9F00F, $2F8AD6D6, $2B4BCB61, $350C9B64, $31CD86D3, $3C8EA00A, $384FBDBD,
     $4C11DB70, $48D0C6C7, $4593E01E, $4152FDA9, $5F15ADAC, $5BD4B01B, $569796C2, $52568B75,

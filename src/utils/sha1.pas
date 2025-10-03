@@ -14,7 +14,7 @@ program SHA1Util;
 }
 
 uses
-  Hash, SysUtils;
+  BBSTypes,Hash, SysUtils;
 
 const
   BUFFER_SIZE = 4096;
@@ -22,10 +22,10 @@ const
 var
   f: File of Byte;
   buffer: array[0..BUFFER_SIZE-1] of Byte;
-  bytesRead: Integer;
+  bytesRead: TInt;
   ctx: TSHA1Context;
   digest: TSHA1Digest;
-  i: Integer;
+  i: TInt;
 
 begin
   if ParamCount <> 1 then

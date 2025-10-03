@@ -11,9 +11,9 @@ uses BTree;
 
 var
   tree: TBTree;
-  values: array[0..99] of LongInt;
-  count: Integer;
-  userKey: LongInt;
+  values: array[0..99] of TLong;
+  count: TInt;
+  userKey: TLong;
 
 begin
   { Create a new B-Tree }
@@ -64,33 +64,33 @@ The B-Tree file is organized into 512-byte pages:
 
 1. **Header Page (Page 0)**
    - Magic number: 'BTRE' (4 bytes)
-   - Format version: Word (2 bytes)
-   - Tree order: Word (2 bytes) - maximum children per node
-   - Root page number: LongInt (4 bytes)
-   - Next free page: LongInt (4 bytes)
-   - Total page count: LongInt (4 bytes)
+   - Format version: TWord (2 bytes)
+   - Tree order: TWord (2 bytes) - maximum children per node
+   - Root page number: TLong (4 bytes)
+   - Next free page: TLong (4 bytes)
+   - Total page count: TLong (4 bytes)
 
 2. **Leaf Node Pages**
    - Page type: Byte (1 = leaf)
-   - Key count: Word (2 bytes)
-   - Next leaf pointer: LongInt (4 bytes) - for range queries
+   - Key count: TWord (2 bytes)
+   - Next leaf pointer: TLong (4 bytes) - for range queries
    - Entries: Array of leaf entries
      - Each entry contains:
-       - Key: LongInt (4 bytes)
-       - Value count: Word (2 bytes)
-       - Values: Array of LongInt (up to 60 values)
-       - Overflow page: LongInt (4 bytes, 0 if none)
+       - Key: TLong (4 bytes)
+       - Value count: TWord (2 bytes)
+       - Values: Array of TLong (up to 60 values)
+       - Overflow page: TLong (4 bytes, 0 if none)
 
 3. **Internal Node Pages** (for future expansion)
    - Page type: Byte (2 = internal)
-   - Key count: Word
+   - Key count: TWord
    - Keys and child page pointers
 
 4. **Overflow Pages** (for future expansion)
    - Page type: Byte (4 = overflow)
-   - Value count: Word
-   - Next overflow page: LongInt
-   - Values: Array of LongInt (up to 120 values)
+   - Value count: TWord
+   - Next overflow page: TLong
+   - Values: Array of TLong (up to 120 values)
 
 ### Capacity
 
@@ -121,23 +121,23 @@ const
   MAX_OVERFLOW = 120;   { Maximum values in an overflow page }
 
 type
-  TPageNum = LongInt;
-  TKeyValue = LongInt;
+  TPageNum = TLong;
+  TKeyValue = TLong;
 
   TPageType = (ptNone, ptHeader, ptInternal, ptLeaf, ptOverflow);
 
   TBTreeHeader = record
     Magic: array[0..3] of Char;
-    Version: Word;
-    Order: Word;
+    Version: TWord;
+    Order: TWord;
     RootPage: TPageNum;
     NextFreePage: TPageNum;
-    PageCount: LongInt;
+    PageCount: TLong;
   end;
 
   TLeafEntry = record
     Key: TKeyValue;
-    ValueCount: Word;
+    ValueCount: TWord;
     Values: array[0..MAX_VALUES-1] of TKeyValue;
     OverflowPage: TPageNum;
   end;
@@ -178,7 +178,7 @@ type
 - If key doesn't exist, creates new entry
 - Returns true on success
 
-**`Find(var tree: TBTree; key: TKeyValue; var values: array of TKeyValue; var count: Integer): Boolean`**
+**`Find(var tree: TBTree; key: TKeyValue; var values: array of TKeyValue; var count: TInt): Boolean`**
 - Finds all values for a given key
 - Returns values in the provided array
 - Sets count to number of values found
@@ -200,13 +200,13 @@ type
 - Generates a B-Tree key from a string
 - Converts string to lowercase for case-insensitive lookups
 - Computes CRC16 hash of the lowercase string
-- Returns the CRC16 value as a LongInt key
+- Returns the CRC16 value as a TLong key
 - Use this to create keys for indexing string values like usernames
 
 Example:
 ```pascal
 var
-  key: LongInt;
+  key: TLong;
 begin
   key := StringKey('Username');  { Same as StringKey('username') }
   Insert(tree, key, 12345);      { Index user ID 12345 under this name }

@@ -15,10 +15,10 @@ This library implements CRC and hashing functions needed for other parts of the 
 Each of the supported alogrithms has 4 functions. 
 For example, the CRC16 algorithm includes the following methods:
 
-- CRC16(ByteArray, ArrayLength): Integer
-- CRC16Start(CRC, ByteArray, ArrayLength): Integer
-- CRC16Add(CRC, ByteArray, ArrayLength): Integer
-- CRC16End(CRC, ByteArray, ArrayLength): Integer
+- CRC16(ByteArray, ArrayLength): TInt
+- CRC16Start(CRC, ByteArray, ArrayLength): TInt
+- CRC16Add(CRC, ByteArray, ArrayLength): TInt
+- CRC16End(CRC, ByteArray, ArrayLength): TInt
 
 The first method is a one-shot method designed to return a value for a
 given array of bytes. The other three methods are meant to work in tandem
