@@ -4,7 +4,7 @@ RetroBBS stores data in a variety of data files. To make it easier to work with 
 
 ## Data File Format
 
-RetroBBS data files are binary files that store fixed sized records. This allows for both random access of specific records and easy reuse of freed space when records are removed. To accomplish this, the data file is divided into equal size blocks.
+RetroBBS data files are binary files organized into fixed-size 512-byte pages. This page-based architecture allows for both random access of specific records and easy reuse of freed space when records are removed. The 512-byte page size matches the BTree unit's page size and is optimal for retro system disk I/O.
 
 **Note: Data files are not guaranteed to be readable by a RetroBBS instance running on a different operating system than the one that originally created the data file. This is especially true when moving between 16, 32, and 64 bit systems. Cross-platform compatibility issues include:**
 - **Endianness**: Big-endian vs little-endian byte order
@@ -16,47 +16,66 @@ RetroBBS data files are binary files that store fixed sized records. This allows
 ### Files
 
 Each database is actually comprised of a number of files. Let's look at the `Users` database as an example:
-- USERS.DAT - The actual data is stored here (includes header in first block)
-- USERS.IDX - Primary index mapping Record ID → Block ID (B-Tree)
+- USERS.DAT - The actual data is stored here (includes header in first page)
+- USERS.IDX - Primary index mapping Record ID → Page Number (B-Tree)
 - USERS.I00 - Secondary index 00 (e.g., username → Record ID)
 - USERS.I01 - Secondary index 01 (e.g., email → Record ID)
 - USERS.JNL - Journal file for transaction recovery
 
 **Index Architecture**:
-- The `.IDX` file is the primary index that maps Record IDs to physical Block IDs
+- The `.IDX` file is the primary index that maps Record IDs to physical Page Numbers
 - All secondary indexes (`.I??` files) map field values to Record IDs
-- This indirection allows records to move between blocks without updating secondary indexes
+- This indirection allows records to move between pages without updating secondary indexes
 - Only the primary `.IDX` index needs updating when a record's physical location changes
 
-### Database Header (Block 0 of .DAT file)
+### Database Header (Pages 0-1 of .DAT file)
 
-The first block (block 0) of the `.DAT` file contains a `TDBHeader` record stored in fixed length binary format. This header is loaded into memory when the database is opened.
+The database header spans the first two pages of the `.DAT` file. Page 0 contains metadata and index definitions, page 1 contains the free page list.
 
+#### Page 0: TDBHeader + Index List
+
+**Header (32 bytes):**
 | Name            | Type                          | Notes                                      |
 | --------------- | ----------------------------- | ------------------------------------------ |
 | Signature       | array[0..7] of Char           | 'RETRODB' + #0 for file type validation    |
 | Version         | Word                          | Format version (currently 1)               |
-| BlockSize       | Word                          | Size of each data block in bytes           |
+| PageSize        | Word                          | Size of each page in bytes (always 512)    |
 | RecordCount     | LongInt                       | Total number of active records             |
 | NextRecordID    | LongInt                       | Next available Record ID                   |
 | LastCompacted   | TBBSTimestamp                 | Timestamp of last compaction operation     |
 | JournalPending  | Boolean                       | True if journal needs replay on open       |
-| IndexCount      | Word                          | Number of secondary indexes (0-99)         |
-| Indexes         | array[0..98] of TDBIndexInfo  | Secondary index definitions                |
-| Reserved        | Padding to BlockSize          | Reserved for future use                    |
+| IndexCount      | Byte                          | Number of secondary indexes (0-15)         |
+| Reserved        | array[0..5] of Byte           | Padding to 32 bytes                        |
 
-**TDBIndexInfo** (embedded in header):
+**Index List (480 bytes):**
+| Name            | Type                          | Notes                                      |
+| --------------- | ----------------------------- | ------------------------------------------ |
+| Indexes         | array[0..14] of TDBIndexInfo  | Secondary index definitions (15 × 32 = 480)|
+
+**Total page 0 size:** 32 + 480 = 512 bytes
+
+#### Page 1: TDBFreeList
+
+| Name            | Type                          | Notes                                      |
+| --------------- | ----------------------------- | ------------------------------------------ |
+| FreePageCount   | Word (2 bytes)                | Total count of free pages in database      |
+| FreePageListLen | Word (2 bytes)                | Number of entries in FreePages array (0-127)|
+| FreePages       | array[0..126] of LongInt      | Page numbers of empty pages (508 bytes)    |
+
+**TDBIndexInfo** (in page 0, after header):
 | Name          | Type           | Notes                                           |
 | ------------- | -------------- | ----------------------------------------------- |
-| FieldName     | Str31          | The name of the field being indexed             |
-| IndexType     | TDBIndexType   | itID (0) = LongInt ID, itString (1) = Str63     |
-| IndexNumber   | Byte           | Maps to one of the `I??` files (00-99)          |
+| FieldName     | String[29]     | The name of the field being indexed (30 bytes)  |
+| IndexType     | Byte           | 0 = itID (LongInt), 1 = itString (Str63)        |
+| IndexNumber   | Byte           | Maps to one of the `I??` files (00-14)          |
 
-**Index Type Enumeration**:
-```pascal
-type
-  TDBIndexType = (itID, itString);
-```
+**TDBIndexInfo Size**: 30 bytes (String[29] = 1 length byte + 29 data bytes) + 1 byte (IndexType) + 1 byte (IndexNumber) = 32 bytes exactly
+
+**Page 0 Layout**: 32 bytes (header) + 480 bytes (15 indexes × 32 bytes) = 512 bytes
+
+**Index Type Values**:
+- **0 (itID)**: Index on a LongInt field
+- **1 (itString)**: Index on a Str63 field
 
 **Signature**: Used to verify file format. Always 'RETRODB' followed by null terminator.
 
@@ -66,46 +85,62 @@ type
 
 **NextRecordID**: Auto-incrementing counter for assigning new Record IDs. Never decreases.
 
-**Compaction**: The process of removing empty blocks and rebuilding indexes to reclaim disk space. The `LastCompacted` field tracks when this was last done.
+**PageSize**: Always 512 bytes. This constant size matches the BTree unit and simplifies disk I/O.
+
+**Compaction**: The process of removing empty pages and rebuilding indexes to reclaim disk space. The `LastCompacted` field tracks when this was last done.
 
 **Journal Pending**: Set to `True` when a transaction begins, `False` when committed. If `True` on database open, the journal must be replayed to complete interrupted operations.
 
-**IndexCount**: Number of active secondary indexes. Maximum 99 (I00 through I98).
+**IndexCount**: Number of active secondary indexes (0-15). Maximum 15 indexes supported.
 
-**Indexes**: Array containing metadata for all secondary indexes. Only the first `IndexCount` entries are valid.
+**Reserved**: 6 bytes of padding to bring header to exactly 32 bytes.
 
-### Data Block Layout
+**FreePageCount** (in TDBFreeList, page 1): Total count of all free pages in the database (maximum 65535). This counter is incremented when a page is deleted and decremented when a page is allocated. If this value is 0, allocate a new page at end of file. If this value is > 0 but `FreePageListLen = 0`, call `UpdateFreePages` to repopulate the `FreePages` array.
 
-The `.DAT` file contains a series of records of type `TDBData` stored in fixed length binary format. Blocks are numbered sequentially starting from 0 (block 0 is the header). Data blocks start at block 1. This data is queried on demand as needed by the program and not stored in memory.
+**FreePageListLen** (in TDBFreeList, page 1): Number of valid entries in the `FreePages` array. Maximum 127. The array acts as a stack (LIFO) - new entries are added at index `FreePageListLen`, and pages are allocated by decrementing `FreePageListLen`.
 
-| Name   | Type                          | Notes                                    |
-| ------ | ----------------------------- | ---------------------------------------- |
-| ID     | LongInt (4 bytes)             | Unique record identifier                 |
-| Status | Byte (1 byte)                 | 0 = Empty, 1 = Active                    |
-| Data   | array[0..BlockSize-6] of Byte | Actual record data (variable size)       |
+**FreePages** (page 1): Array of up to 127 page numbers that are known to be empty. This provides O(1) free page lookup. When the array is full and more pages are deleted, `FreePageCount` continues to increment but the page numbers are not added to the array. When `FreePages` is empty but `FreePageCount > 0`, `UpdateFreePages` is called to scan the database and refill the array.
 
-**Block Size Calculation**:
-- Overhead: 4 bytes (ID) + 1 byte (Status) + 1 byte (alignment) = 6 bytes minimum
-- Data size: BlockSize - 6 bytes
-- Total block size must account for record alignment on the target platform
+**Indexes** (page 0, bytes 32-511): Array of 15 index definitions. Only the first `IndexCount` entries are valid. Each index has a unique `IndexNumber` (0-14) that maps to an `.I??` file.
+
+### Data Page Layout
+
+The `.DAT` file contains a series of pages of type `TDBPage` stored in fixed 512-byte format. Pages are numbered sequentially starting from 0. Pages 0-1 contain the database header (with index list) and free list. Data pages start at page 2. This data is queried on demand as needed by the program and not stored in memory.
+
+| Name   | Type                   | Notes                                    |
+| ------ | ---------------------- | ---------------------------------------- |
+| ID     | LongInt (4 bytes)      | Unique record identifier                 |
+| Status | Byte (1 byte)          | 0 = Empty, 1 = Active                    |
+| Data   | array[0..506] of Byte  | Actual record data (507 bytes max)       |
+
+**Page Size Calculation**:
+- Page size: 512 bytes (constant)
+- Overhead: 4 bytes (ID) + 1 byte (Status) = 5 bytes
+- Data size: 512 - 5 = 507 bytes available for record data
 
 **Free Space Management**:
-- When a record is deleted, its `Status` is set to 0 (Empty)
-- Finding free space requires scanning the .DAT file for empty blocks (O(n) operation)
-- Consider implementing a free list or bitmap for O(1) free block lookup in production use
+- When a record is deleted:
+  - Set page `Status` to 0 (Empty)
+  - Increment `FreePageCount` (in TDBFreeList)
+  - If `FreePageListLen < 127`: Add page number to `FreePages[FreePageListLen]` and increment `FreePageListLen`
+  - If array is full: Page number is not added, but `FreePageCount` tracks it
+- When adding a record:
+  - If `FreePageCount = 0`: Allocate new page at end of file (O(1))
+  - If `FreePageCount > 0` and `FreePageListLen > 0`: Use `FreePages[FreePageListLen-1]`, decrement both counters (O(1))
+  - If `FreePageCount > 0` but `FreePageListLen = 0`: Call `UpdateFreePages` to scan and refill array (O(n) once, then O(1) for next 127 allocations)
 
 ### Primary Index (.IDX file)
 
-The `.IDX` file is a B-Tree index (as defined by the `BTree` unit) that maps Record IDs to Block IDs.
+The `.IDX` file is a B-Tree index (as defined by the `BTree` unit) that maps Record IDs to Page Numbers.
 
 **Index Structure**:
-- **Keys**: Record IDs (LongInt values from `TDBData.ID`)
-- **Values**: Block IDs (physical block numbers in .DAT file where record is stored)
-- **Purpose**: Translates logical Record IDs to physical block locations
+- **Keys**: Record IDs (LongInt values from `TDBPage.ID`)
+- **Values**: Page Numbers (physical page numbers in .DAT file where record is stored)
+- **Purpose**: Translates logical Record IDs to physical page locations
 
 This primary index is updated whenever:
-- A record is added (insert RecordID → BlockID mapping)
-- A record is moved to a new block during compaction (update RecordID mapping)
+- A record is added (insert RecordID → PageNum mapping)
+- A record is moved to a new page during compaction (update RecordID mapping)
 - A record is deleted (remove RecordID from index)
 
 ### Secondary Indexes (.I?? files)
@@ -121,7 +156,7 @@ The `.I??` files contain B-Tree indexes for specific fields. The `??` in the ext
 - `itID` type indexes: Use the field value directly as the B-Tree key
 - `itString` type indexes: Use the `StringKey()` function to generate a CRC16-based key from the string
 
-**Index Values**: The B-Tree values are Record IDs. To retrieve the actual record, perform a second lookup in the primary `.IDX` index to get the Block ID.
+**Index Values**: The B-Tree values are Record IDs. To retrieve the actual record, perform a second lookup in the primary `.IDX` index to get the Page Number.
 
 ## Journal File Structure
 
@@ -129,27 +164,27 @@ The journal file (`<database>.jnl`) contains pending operations that have not ye
 
 ### TDBJournalEntry
 
-| Name      | Type                          | Notes                                           |
-| --------- | ----------------------------- | ----------------------------------------------- |
-| Operation | Byte                          | 0 = None/Empty, 1 = Update, 2 = Delete, 3 = Add |
-| BlockID   | LongInt (4 bytes)             | Block being modified, -1 for Add operations     |
-| RecordID  | LongInt (4 bytes)             | Record ID for verification                      |
-| Data      | array[0..BlockSize-1] of Byte | New record data (for Update and Add)            |
-| Checksum  | Word (2 bytes)                | CRC16 of Operation + BlockID + RecordID + Data  |
+| Name      | Type                   | Notes                                           |
+| --------- | ---------------------- | ----------------------------------------------- |
+| Operation | Byte                   | 0 = None/Empty, 1 = Update, 2 = Delete, 3 = Add |
+| PageNum   | LongInt (4 bytes)      | Page being modified, -1 for Add operations      |
+| RecordID  | LongInt (4 bytes)      | Record ID for verification                      |
+| Data      | array[0..506] of Byte  | New record data (for Update and Add)            |
+| Checksum  | Word (2 bytes)         | CRC16 of Operation + PageNum + RecordID + Data  |
 
-**Journal Entry Size**: 1 + 4 + 4 + BlockSize + 2 = BlockSize + 11 bytes
+**Journal Entry Size**: 1 + 4 + 4 + 507 + 2 = 518 bytes
 
 **Operation Types**:
 - **0 (None/Empty)**: Unused journal entry
-- **1 (Update)**: Update existing block at BlockID with new Data
-- **2 (Delete)**: Mark block at BlockID as Empty
-- **3 (Add)**: Add new record with Data (BlockID is -1, actual block assigned during replay)
+- **1 (Update)**: Update existing page at PageNum with new Data
+- **2 (Delete)**: Mark page at PageNum as Empty
+- **3 (Add)**: Add new record with Data (PageNum is -1, actual page assigned during replay)
 
 **Checksum**: The CRC16 checksum ensures journal entry integrity. Corrupted entries are skipped during replay.
 
 ### Example Usage: Find a User by ID (Record ID)
 
-At program start, the program reads the database header from block 0 of the `.DAT` file. The header contains all index metadata.
+At program start, the program reads the database header from pages 0-1 of the `.DAT` file (header with index list, and free list).
 
 To find a User by their Record ID, the program:
 
@@ -158,12 +193,12 @@ To find a User by their Record ID, the program:
    OpenBTree(idxTree, 'USERS.IDX');
    ```
 
-2. **Finds the block number**: Calls `Find(idxTree, recordID, values, count)` where `recordID` is the Record ID to search for
-   - The `values` array will contain the physical block number
+2. **Finds the page number**: Calls `Find(idxTree, recordID, values, count)` where `recordID` is the Record ID to search for
+   - The `values` array will contain the physical page number
 
-3. **Reads the data block**:
-   - Seeks to position `(blockNum * blockSize)` in `USERS.DAT`
-   - Reads the `TDBData` record
+3. **Reads the data page**:
+   - Seeks to position `(pageNum * 512)` in `USERS.DAT`
+   - Reads the `TDBPage` record (512 bytes)
    - Verifies `Status = 1` (Active) and `ID = recordID`
    - Returns the `Data` field to the caller
 
@@ -171,10 +206,10 @@ To find a User by their Record ID, the program:
 
 ### Example Usage: Find a User by Username
 
-Finding by a secondary index requires two lookups: secondary index → Record ID, then primary index → Block ID.
+Finding by a secondary index requires two lookups: secondary index → Record ID, then primary index → Page Number.
 
-1. **Looks up the index**: Search through `Header.Indexes` for `FieldName = "Username"`
-   - Example: `{FieldName: "Username", IndexType: itString, IndexNumber: 0}`
+1. **Looks up the index**: Search through the index list (page 0, bytes 32-511) for `FieldName = "Username"`
+   - Example: `{FieldName: "Username", IndexType: 1 (itString), IndexNumber: 0}`
 
 2. **Opens the secondary index file**: Opens `USERS.I00`
    ```pascal
@@ -187,10 +222,10 @@ Finding by a secondary index requires two lookups: secondary index → Record ID
 4. **Finds the Record ID**: `Find(nameTree, key, recordIDs, count)`
    - The `recordIDs` array contains Record IDs (may be multiple due to hash collisions)
 
-5. **Lookup Block ID**: For each Record ID:
+5. **Lookup Page Number**: For each Record ID:
    - Open primary index: `OpenBTree(idxTree, 'USERS.IDX')`
-   - Find block: `Find(idxTree, recordID, blockNums, count)`
-   - Read block from .DAT file
+   - Find page: `Find(idxTree, recordID, pageNums, count)`
+   - Read page from .DAT file (at `pageNum * 512`)
    - Verify username matches (handle CRC16 hash collisions)
    - Close primary index
 
@@ -200,40 +235,47 @@ Finding by a secondary index requires two lookups: secondary index → Record ID
 
 1. **Assign Record ID**: Use `Header.NextRecordID` and increment it
 
-2. **Find free block**:
-   - Scan .DAT file for block with `Status = 0` (Empty)
-   - Or append new block at end of file
+2. **Find free page**:
+   - If `FreeList.FreePageCount = 0`: Append new page at end of file
+   - Else if `FreeList.FreePageListLen > 0`:
+     - Decrement `FreePageListLen`
+     - Use `FreePages[FreePageListLen]`
+     - Decrement `FreePageCount`
+   - Else (count > 0 but list empty):
+     - Call `UpdateFreePages` to scan database and refill `FreePages` array
+     - Then use `FreePages[FreePageListLen-1]` and decrement both counters
 
 3. **Write data**:
    ```pascal
-   block.ID := newRecordID;
-   block.Status := 1;  { Active }
-   block.Data := userData;
-   { Write to .DAT at blockNum * blockSize }
+   page.ID := newRecordID;
+   page.Status := 1;  { Active }
+   page.Data := userData;
+   { Write to .DAT at pageNum * 512 }
    ```
 
 4. **Update primary index**:
    - Open `USERS.IDX`
-   - Insert mapping: `Insert(idxTree, newRecordID, blockNum)`
+   - Insert mapping: `Insert(idxTree, newRecordID, pageNum)`
 
 5. **Update all secondary indexes**:
    - For username index: `Insert(nameTree, StringKey(username), newRecordID)`
    - For email index: `Insert(emailTree, StringKey(email), newRecordID)`
-   - Note: Secondary indexes store Record IDs, not Block IDs
+   - Note: Secondary indexes store Record IDs, not Page Numbers
 
-6. **Update header**:
+6. **Update header and free list**:
    - Increment `Header.RecordCount`
    - Increment `Header.NextRecordID`
-   - Write header back to block 0
+   - Write header back to page 0
+   - Write free list back to page 1 (if modified)
 
 ### Example Usage: Deleting a Record
 
-1. **Find the record**: Use primary index to get Record ID → Block ID
+1. **Find the record**: Use primary index to get Record ID → Page Number
 
 2. **Mark as empty**:
    ```pascal
-   block.Status := 0;  { Empty }
-   { Write updated block back to .DAT }
+   page.Status := 0;  { Empty }
+   { Write updated page back to .DAT }
    ```
 
 3. **Update primary index**:
@@ -243,28 +285,36 @@ Finding by a secondary index requires two lookups: secondary index → Record ID
    - `DeleteValue(nameTree, StringKey(username), recordID)`
    - `DeleteValue(emailTree, StringKey(email), recordID)`
 
-5. **Update header**:
-   - Decrement `Header.RecordCount`
-   - Write header back to block 0
+5. **Add to free list**:
+   - Increment `FreeList.FreePageCount` (always, tracks total free pages)
+   - If `FreeList.FreePageListLen < 127`:
+     - Add page number to `FreePages[FreePageListLen]`
+     - Increment `FreePageListLen`
+   - Else: Page number not added to array, but count still incremented
 
-6. **Compaction**: Eventually run compaction to reclaim space
+6. **Update header and free list**:
+   - Decrement `Header.RecordCount`
+   - Write header back to page 0
+   - Write free list back to page 1
+
+7. **Compaction**: Eventually run compaction to consolidate pages and rebuild free list accurately
 
 ### Example Usage: Updating a Record
 
 **Non-indexed field changes**:
-- Simply overwrite the data in the existing block
+- Simply overwrite the data in the existing page
 - No index updates needed
 
 **Indexed field changes** (e.g., username change):
 1. **Delete old secondary index entry**: `DeleteValue(nameTree, StringKey(oldUsername), recordID)`
-2. **Update the data block**: Write new data to existing block
+2. **Update the data page**: Write new data to existing page
 3. **Insert new secondary index entry**: `Insert(nameTree, StringKey(newUsername), recordID)`
 4. **Primary index unchanged**: Record ID stays the same, so primary index is not modified
 
-**Moving a record to a new block** (during compaction):
-1. **Write data to new block**: Copy record to new physical location
-2. **Update primary index**: Change mapping from `recordID → oldBlockNum` to `recordID → newBlockNum`
-3. **Mark old block empty**: Set old block `Status = 0`
+**Moving a record to a new page** (during compaction):
+1. **Write data to new page**: Copy record to new physical location
+2. **Update primary index**: Change mapping from `recordID → oldPageNum` to `recordID → newPageNum`
+3. **Mark old page empty**: Set old page `Status = 0`
 4. **Secondary indexes unchanged**: They map to Record IDs, so no updates needed
 
 ## Transaction Protocol
@@ -276,11 +326,11 @@ The journal file provides crash recovery by recording operations before they are
 When updating, deleting, or adding records, follow this sequence:
 
 1. **Append to journal**: Write a `TDBJournalEntry` to the journal file with the operation details
-   - For Update: Operation=1, BlockID=target block, RecordID=record ID, Data=new data
-   - For Delete: Operation=2, BlockID=target block, RecordID=record ID
-   - For Add: Operation=3, BlockID=-1, RecordID=new ID, Data=new data
+   - For Update: Operation=1, PageNum=target page, RecordID=record ID, Data=new data
+   - For Delete: Operation=2, PageNum=target page, RecordID=record ID
+   - For Add: Operation=3, PageNum=-1, RecordID=new ID, Data=new data
 
-2. **Set pending flag**: Update `Header.JournalPending = True` in block 0 of .DAT file
+2. **Set pending flag**: Update `Header.JournalPending = True` in page 0 of .DAT file
 
 3. **Flush journal**: Ensure journal is written to disk (fsync/flush)
 
@@ -288,7 +338,7 @@ When updating, deleting, or adding records, follow this sequence:
 
 5. **Update indexes**: Modify all affected indexes (.I?? files)
 
-6. **Clear pending flag**: Set `Header.JournalPending = False` in block 0 of .DAT file
+6. **Clear pending flag**: Set `Header.JournalPending = False` in page 0 of .DAT file
 
 7. **Truncate journal**: Set journal file size to 0 bytes
 
@@ -298,7 +348,7 @@ When updating, deleting, or adding records, follow this sequence:
 
 When opening a database, check the `JournalPending` flag to determine if recovery is needed:
 
-1. **Check flag**: Read `Header.JournalPending` from block 0 of .DAT file
+1. **Check flag**: Read `Header.JournalPending` from page 0 of .DAT file
 
 2. **If false**: Open database normally, no recovery needed
 
@@ -307,12 +357,12 @@ When opening a database, check the `JournalPending` flag to determine if recover
    - For each journal entry:
      - Read entry and verify checksum using CRC16
      - If checksum valid, replay operation:
-       - **Operation 1 (Update)**: Write `Data` to block `BlockID` in .DAT file
-       - **Operation 2 (Delete)**: Set block `BlockID` status to 0 (Empty)
-       - **Operation 3 (Add)**: Find first empty block (or append), write `Data`
+       - **Operation 1 (Update)**: Write `Data` to page `PageNum` in .DAT file
+       - **Operation 2 (Delete)**: Set page `PageNum` status to 0 (Empty)
+       - **Operation 3 (Add)**: Find first empty page (or append), write `Data`
      - If checksum invalid, skip entry (corrupted)
    - Rebuild all indexes from .DAT file (safer than trusting partial index updates)
-   - Set `Header.JournalPending = False` in block 0 of .DAT file
+   - Set `Header.JournalPending = False` in page 0 of .DAT file
    - Truncate journal file to 0 bytes
 
 **Index Rebuild**: After crash recovery, always rebuild all indexes to ensure consistency. This is safer than attempting to replay partial index updates.
@@ -369,11 +419,12 @@ The `DB` unit should provide high-level helper methods to encapsulate these oper
 
 ### Index Operations
 
-**`AddIndex(var db: TDatabase; fieldName: Str63; indexType: TDBIndexType): Boolean`**
+**`AddIndex(var db: TDatabase; fieldName: String[29]; indexType: Byte): Boolean`**
 - Creates new .I?? file
 - Scans existing records to build index
-- Updates header (increment `IndexCount`, add to `Indexes` array)
+- Updates index list in page 0 (increment `IndexCount`, add to `Indexes` array)
 - Returns true on success
+- Maximum 15 indexes supported
 
 **`RebuildIndex(var db: TDatabase; indexNumber: Byte): Boolean`**
 - Clears and rebuilds specified index
@@ -383,9 +434,18 @@ The `DB` unit should provide high-level helper methods to encapsulate these oper
 ### Maintenance Operations
 
 **`CompactDatabase(var db: TDatabase): Boolean`**
-- Removes empty blocks
+- Removes empty pages by moving active records
 - Rebuilds all indexes
+- Rebuilds free list with accurate `FreePageCount` and `FreePageListLen`
 - Updates LastCompacted timestamp
+- Returns true on success
+
+**`UpdateFreePages(var db: TDatabase): Boolean`**
+- Scans .DAT file for pages with `Status = 0` (Empty)
+- Fills `FreePages` array with up to 127 empty page numbers
+- Sets `FreePageListLen` to actual number found
+- Sets `FreePageCount` to actual total count of empty pages (for accuracy)
+- Called automatically when `FreePageCount > 0` but `FreePageListLen = 0`
 - Returns true on success
 
 **`ValidateDatabase(var db: TDatabase): Boolean`**
@@ -422,47 +482,52 @@ The `DB` unit should provide high-level helper methods to encapsulate these oper
 
 ```pascal
 type
-  TDBIndexType = (itID, itString);
-
   TDBIndexInfo = record
-    FieldName: Str63;
-    IndexType: TDBIndexType;
-    IndexNumber: Byte;
+    FieldName: String[29];               { Field name (30 bytes total) }
+    IndexType: Byte;                     { 0 = itID, 1 = itString }
+    IndexNumber: Byte;                   { Index number 0-14 }
   end;
 
   TDBHeader = record
-    Signature: array[0..7] of Char;     { 'RETRODB' + #0 }
-    Version: Word;                       { Format version (1) }
-    BlockSize: Word;                     { Size of each data block }
-    RecordCount: LongInt;                { Total active records }
-    NextRecordID: LongInt;               { Next available Record ID }
-    LastCompacted: TBBSTimestamp;        { Timestamp of last compaction }
-    JournalPending: Boolean;             { True if journal needs replay }
-    IndexCount: Word;                    { Number of secondary indexes }
-    Indexes: array[0..98] of TDBIndexInfo; { Secondary index definitions }
-    { Padded to BlockSize with Reserved bytes }
+    Signature: array[0..7] of Char;      { 'RETRODB' + #0 }
+    Version: Word;                        { Format version (1) }
+    PageSize: Word;                       { Size of each page (always 512) }
+    RecordCount: LongInt;                 { Total active records }
+    NextRecordID: LongInt;                { Next available Record ID }
+    LastCompacted: TBBSTimestamp;         { Timestamp of last compaction }
+    JournalPending: Boolean;              { True if journal needs replay }
+    IndexCount: Byte;                     { Number of secondary indexes (0-15) }
+    Reserved: array[0..5] of Byte;        { Padding to 32 bytes }
+    Indexes: array[0..14] of TDBIndexInfo; { Secondary index definitions }
   end;
 
-  TDBData = record
+  TDBFreeList = record
+    FreePageCount: Word;                  { Total count of free pages in DB }
+    FreePageListLen: Word;                { Number of entries in FreePages array }
+    FreePages: array[0..126] of LongInt;  { Page numbers of empty pages }
+  end;
+
+  TDBPage = record
     ID: LongInt;       { Record ID }
     Status: Byte;      { 0 = Empty, 1 = Active }
-    Data: array[0..MAX_BLOCK_SIZE-6] of Byte;
+    Data: array[0..506] of Byte;
   end;
 
   TDBJournalEntry = record
     Operation: Byte;  { 0 = None, 1 = Update, 2 = Delete, 3 = Add }
-    BlockID: LongInt;
+    PageNum: LongInt;
     RecordID: LongInt;
-    Data: array[0..MAX_BLOCK_SIZE-1] of Byte;
+    Data: array[0..506] of Byte;
     Checksum: Word;
   end;
 
   TDatabase = record
-    Header: TDBHeader;
+    Header: TDBHeader;                  { Includes index list }
+    FreeList: TDBFreeList;
     DataFile: File;
     JournalFile: File;
-    PrimaryIndex: TBTree;              { .IDX - RecordID → BlockID }
-    SecondaryIndexes: array of TBTree; { .I?? - FieldValue → RecordID }
+    PrimaryIndex: TBTree;               { .IDX - RecordID → PageNum }
+    SecondaryIndexes: array of TBTree;  { .I?? - FieldValue → RecordID }
     IsOpen: Boolean;
   end;
 ```
@@ -472,13 +537,19 @@ type
 - **Primary index lookups**: O(log n) via B-Tree - fast
 - **Secondary index lookups**: O(log n) + O(log n) = two B-Tree lookups (secondary → primary)
   - Trade-off: Slower reads for faster compaction and updates
-- **Finding free blocks**: O(n) linear scan - slow without free list
+- **Finding free pages**:
+  - O(1) when `FreePageListLen > 0` (use array)
+  - O(1) when `FreePageCount = 0` (append new page)
+  - O(n) when `FreePageCount > 0` but `FreePageListLen = 0` (scan to refill array)
+    - After scan, next 127 allocations are O(1)
+  - `FreePageCount` tracks total free pages for quick "are there any?" check
+  - Array holds up to 127 page numbers for fast access
 - **Multiple indexes**: Each insert/update/delete must update primary + all secondary indexes
 - **Hash collisions**: StringKey uses CRC16, so collisions are possible (1 in 65536)
   - Always verify string match after hash lookup
 - **Journal overhead**: Each write operation requires:
-  - One journal file append (fsync)
-  - One header update (set JournalPending flag in block 0)
+  - One journal file append (518 bytes per entry, fsync)
+  - One header update (set JournalPending flag in page 0)
   - Actual database modification
   - Second header update (clear flag)
   - Journal truncate
@@ -486,10 +557,12 @@ type
 - **Batch operations**: Use multi-entry transactions to amortize journal overhead across multiple operations
 - **Compaction advantage**: With indirect indexing, only primary index needs updating when moving records
   - Secondary indexes are unchanged since Record IDs don't change
+- **Page alignment**: 512-byte pages align well with disk sector sizes on retro systems
+- **Free list size**: 4 bytes header + 127 entries × 4 bytes = 512 bytes (fits in one 512-byte page perfectly)
 
 ## Future Enhancements
 
-1. **Free list management**: Bitmap or linked list of empty blocks for O(1) free block lookup
+1. **Extended free list**: Linked list of free list pages for tracking more than 128 empty pages
 2. **Multi-operation transactions**: Group related operations into atomic units
 3. **Record-level checksums**: Detect data corruption in .DAT file
 4. **Compression**: For large text fields
