@@ -1,3 +1,9 @@
+# DB Files
+*.dat
+*.idx
+*.i??
+*.jnl
+
 # Compiled binaries
 bin/
 *.exe

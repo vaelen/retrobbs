@@ -13,7 +13,7 @@ uses
   BTree, SysUtils;
 
 const
-  TEST_FILE = 'test.btree';
+  TEST_FILE = 'tests/btree/test.btree';
 
 var
   passed: Integer;

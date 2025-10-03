@@ -19,17 +19,24 @@ UTIL_BIN_DIR = $(BIN_DIR)/utils
 
 # Source files
 MAIN_SRC = $(SRC_DIR)/retrobbs.pas
-ANSI_TEST_SRC = $(TEST_DIR)/ansitest.pas
-HASH_TEST_SRC = $(TEST_DIR)/hashtest.pas
-TYPE_TEST_SRC = $(TEST_DIR)/typetest.pas
-USER_TEST_SRC = $(TEST_DIR)/usertest.pas
-BTREE_TEST_SRC = $(TEST_DIR)/btreetest.pas
+ANSI_TEST_SRC = $(TEST_DIR)/ansi/test.pas
+HASH_TEST_SRC = $(TEST_DIR)/hash/test.pas
+TYPE_TEST_SRC = $(TEST_DIR)/bbstypes/test.pas
+USER_TEST_SRC = $(TEST_DIR)/user/test.pas
+BTREE_TEST_SRC = $(TEST_DIR)/btree/test.pas
+DB_TEST_SRC = $(TEST_DIR)/db/test.pas
+DB_SIMPLE_SRC = $(TEST_DIR)/db/simple.pas
+DB_SIZE_SRC = $(TEST_DIR)/db/size.pas
+DB_MINIMAL_SRC = $(TEST_DIR)/db/minimal.pas
+DB_ALL_SRC = $(TEST_DIR)/db/all.pas
+ALL_TESTS_SRC = $(TEST_DIR)/all.pas
 DEMO_SRC = $(DEMO_DIR)/ansidemo.pas
 ANSI_UNIT = $(SRC_DIR)/ansi.pas
 HASH_UNIT = $(SRC_DIR)/hash.pas
 BBSTYPES_UNIT = $(SRC_DIR)/bbstypes.pas
 USER_UNIT = $(SRC_DIR)/user.pas
 BTREE_UNIT = $(SRC_DIR)/btree.pas
+DB_UNIT = $(SRC_DIR)/db.pas
 
 # Utility source files
 CRC16_SRC = $(UTIL_DIR)/crc16.pas
@@ -39,11 +46,23 @@ SHA1_SRC = $(UTIL_DIR)/sha1.pas
 
 # Output binaries
 OUTPUT = $(BIN_DIR)/retrobbs
-ANSI_TEST_OUTPUT = $(TEST_BIN_DIR)/ansitest
-HASH_TEST_OUTPUT = $(TEST_BIN_DIR)/hashtest
-TYPE_TEST_OUTPUT = $(TEST_BIN_DIR)/typetest
-USER_TEST_OUTPUT = $(TEST_BIN_DIR)/usertest
-BTREE_TEST_OUTPUT = $(TEST_BIN_DIR)/btreetest
+ANSI_TEST_BIN_DIR = $(TEST_BIN_DIR)/ansi
+HASH_TEST_BIN_DIR = $(TEST_BIN_DIR)/hash
+TYPE_TEST_BIN_DIR = $(TEST_BIN_DIR)/bbstypes
+USER_TEST_BIN_DIR = $(TEST_BIN_DIR)/user
+BTREE_TEST_BIN_DIR = $(TEST_BIN_DIR)/btree
+ANSI_TEST_OUTPUT = $(ANSI_TEST_BIN_DIR)/test
+HASH_TEST_OUTPUT = $(HASH_TEST_BIN_DIR)/test
+TYPE_TEST_OUTPUT = $(TYPE_TEST_BIN_DIR)/test
+USER_TEST_OUTPUT = $(USER_TEST_BIN_DIR)/test
+BTREE_TEST_OUTPUT = $(BTREE_TEST_BIN_DIR)/test
+DB_TEST_BIN_DIR = $(TEST_BIN_DIR)/db
+DB_TEST_OUTPUT = $(DB_TEST_BIN_DIR)/test
+DB_SIMPLE_OUTPUT = $(DB_TEST_BIN_DIR)/simple
+DB_SIZE_OUTPUT = $(DB_TEST_BIN_DIR)/size
+DB_MINIMAL_OUTPUT = $(DB_TEST_BIN_DIR)/minimal
+DB_ALL_OUTPUT = $(DB_TEST_BIN_DIR)/all
+ALL_TESTS_OUTPUT = $(TEST_BIN_DIR)/all
 DEMO_OUTPUT = $(DEMO_BIN_DIR)/ansidemo
 
 # Utility binaries
@@ -75,25 +94,65 @@ $(UTIL_BIN_DIR):
 $(OUTPUT): $(MAIN_SRC) $(ANSI_UNIT) | $(BIN_DIR)
 	$(FPC) $(FPCFLAGS) -o$(OUTPUT) $(MAIN_SRC)
 
+# Create test binary directories
+$(ANSI_TEST_BIN_DIR):
+	mkdir -p $(ANSI_TEST_BIN_DIR)
+
+$(HASH_TEST_BIN_DIR):
+	mkdir -p $(HASH_TEST_BIN_DIR)
+
+$(TYPE_TEST_BIN_DIR):
+	mkdir -p $(TYPE_TEST_BIN_DIR)
+
+$(USER_TEST_BIN_DIR):
+	mkdir -p $(USER_TEST_BIN_DIR)
+
+$(BTREE_TEST_BIN_DIR):
+	mkdir -p $(BTREE_TEST_BIN_DIR)
+
 # Build the ANSI test program
-$(ANSI_TEST_OUTPUT): $(ANSI_TEST_SRC) $(ANSI_UNIT) | $(TEST_BIN_DIR)
+$(ANSI_TEST_OUTPUT): $(ANSI_TEST_SRC) $(ANSI_UNIT) | $(ANSI_TEST_BIN_DIR)
 	$(FPC) $(FPCFLAGS) -o$(ANSI_TEST_OUTPUT) $(ANSI_TEST_SRC)
 
 # Build the Hash test program
-$(HASH_TEST_OUTPUT): $(HASH_TEST_SRC) $(HASH_UNIT) | $(TEST_BIN_DIR)
+$(HASH_TEST_OUTPUT): $(HASH_TEST_SRC) $(HASH_UNIT) | $(HASH_TEST_BIN_DIR)
 	$(FPC) $(FPCFLAGS) -o$(HASH_TEST_OUTPUT) $(HASH_TEST_SRC)
 
 # Build the BBSTypes test program
-$(TYPE_TEST_OUTPUT): $(TYPE_TEST_SRC) $(BBSTYPES_UNIT) | $(TEST_BIN_DIR)
+$(TYPE_TEST_OUTPUT): $(TYPE_TEST_SRC) $(BBSTYPES_UNIT) | $(TYPE_TEST_BIN_DIR)
 	$(FPC) $(FPCFLAGS) -o$(TYPE_TEST_OUTPUT) $(TYPE_TEST_SRC)
 
 # Build the User test program
-$(USER_TEST_OUTPUT): $(USER_TEST_SRC) $(USER_UNIT) $(BBSTYPES_UNIT) $(HASH_UNIT) | $(TEST_BIN_DIR)
+$(USER_TEST_OUTPUT): $(USER_TEST_SRC) $(USER_UNIT) $(BBSTYPES_UNIT) $(HASH_UNIT) | $(USER_TEST_BIN_DIR)
 	$(FPC) $(FPCFLAGS) -o$(USER_TEST_OUTPUT) $(USER_TEST_SRC)
 
 # Build the BTree test program
-$(BTREE_TEST_OUTPUT): $(BTREE_TEST_SRC) $(BTREE_UNIT) $(BBSTYPES_UNIT) $(HASH_UNIT) | $(TEST_BIN_DIR)
+$(BTREE_TEST_OUTPUT): $(BTREE_TEST_SRC) $(BTREE_UNIT) $(BBSTYPES_UNIT) $(HASH_UNIT) | $(BTREE_TEST_BIN_DIR)
 	$(FPC) $(FPCFLAGS) -o$(BTREE_TEST_OUTPUT) $(BTREE_TEST_SRC)
+
+# Create DB test binary directory
+$(DB_TEST_BIN_DIR):
+	mkdir -p $(DB_TEST_BIN_DIR)
+
+# Build the DB test programs
+$(DB_TEST_OUTPUT): $(DB_TEST_SRC) $(DB_UNIT) $(BTREE_UNIT) $(BBSTYPES_UNIT) $(HASH_UNIT) | $(DB_TEST_BIN_DIR)
+	$(FPC) $(FPCFLAGS) -o$(DB_TEST_OUTPUT) $(DB_TEST_SRC)
+
+$(DB_SIMPLE_OUTPUT): $(DB_SIMPLE_SRC) $(DB_UNIT) $(BTREE_UNIT) $(BBSTYPES_UNIT) $(HASH_UNIT) | $(DB_TEST_BIN_DIR)
+	$(FPC) $(FPCFLAGS) -o$(DB_SIMPLE_OUTPUT) $(DB_SIMPLE_SRC)
+
+$(DB_SIZE_OUTPUT): $(DB_SIZE_SRC) $(DB_UNIT) $(BTREE_UNIT) $(BBSTYPES_UNIT) | $(DB_TEST_BIN_DIR)
+	$(FPC) $(FPCFLAGS) -o$(DB_SIZE_OUTPUT) $(DB_SIZE_SRC)
+
+$(DB_MINIMAL_OUTPUT): $(DB_MINIMAL_SRC) $(DB_UNIT) $(BTREE_UNIT) $(BBSTYPES_UNIT) $(HASH_UNIT) | $(DB_TEST_BIN_DIR)
+	$(FPC) $(FPCFLAGS) -o$(DB_MINIMAL_OUTPUT) $(DB_MINIMAL_SRC)
+
+$(DB_ALL_OUTPUT): $(DB_ALL_SRC) | $(DB_TEST_BIN_DIR)
+	$(FPC) $(FPCFLAGS) -o$(DB_ALL_OUTPUT) $(DB_ALL_SRC)
+
+# Build the master test suite
+$(ALL_TESTS_OUTPUT): $(ALL_TESTS_SRC) | $(TEST_BIN_DIR)
+	$(FPC) $(FPCFLAGS) -o$(ALL_TESTS_OUTPUT) $(ALL_TESTS_SRC)
 
 # Build the ANSI demo program
 $(DEMO_OUTPUT): $(DEMO_SRC) $(ANSI_UNIT) | $(DEMO_BIN_DIR)
@@ -116,7 +175,10 @@ $(SHA1_OUTPUT): $(SHA1_SRC) $(HASH_UNIT) | $(UTIL_BIN_DIR)
 	$(FPC) $(FPCFLAGS) -o$(SHA1_OUTPUT) $(SHA1_SRC)
 
 # Build test programs
-test: $(ANSI_TEST_OUTPUT) $(HASH_TEST_OUTPUT) $(TYPE_TEST_OUTPUT) $(USER_TEST_OUTPUT) $(BTREE_TEST_OUTPUT)
+test: $(ANSI_TEST_OUTPUT) $(HASH_TEST_OUTPUT) $(TYPE_TEST_OUTPUT) $(USER_TEST_OUTPUT) $(BTREE_TEST_OUTPUT) $(DB_TEST_OUTPUT) $(ALL_TESTS_OUTPUT)
+
+# Build all DB test programs
+test-db: $(DB_TEST_OUTPUT) $(DB_SIMPLE_OUTPUT) $(DB_SIZE_OUTPUT) $(DB_MINIMAL_OUTPUT) $(DB_ALL_OUTPUT)
 
 # Build demo programs
 demo: $(DEMO_OUTPUT)
@@ -157,4 +219,4 @@ run-test: $(TEST_OUTPUT)
 run-demo: $(DEMO_OUTPUT)
 	$(DEMO_OUTPUT)
 
-.PHONY: all test demo utils clean distclean run run-test run-demo
+.PHONY: all test test-db demo utils clean distclean run run-test run-demo
