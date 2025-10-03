@@ -13,6 +13,7 @@ var
   tree: TBTree;
   values: array[0..99] of LongInt;
   count: Integer;
+  userKey: LongInt;
 
 begin
   { Create a new B-Tree }
@@ -21,14 +22,23 @@ begin
   { Open the B-Tree }
   OpenBTree(tree, 'index.btree');
 
-  { Insert key-value pairs }
+  { Insert numeric key-value pairs }
   Insert(tree, 100, 200);    { Key: 100, Value: 200 }
   Insert(tree, 100, 201);    { Multiple values for same key }
   Insert(tree, 150, 300);    { Different key }
 
+  { Insert using string-based keys }
+  userKey := StringKey('alice');
+  Insert(tree, userKey, 1);  { User ID 1 for username 'alice' }
+
   { Find values for a key }
   if Find(tree, 100, values, count) then
     WriteLn('Found ', count, ' values for key 100');
+
+  { Find by username (case-insensitive) }
+  userKey := StringKey('ALICE');  { Same key as 'alice' }
+  if Find(tree, userKey, values, count) then
+    WriteLn('User alice has ID: ', values[0]);
 
   { Delete a specific value }
   DeleteValue(tree, 100, 200);
@@ -184,6 +194,25 @@ type
 - If no values remain for key, deletes the key entirely
 - Returns true on success
 
+### Utility Functions
+
+**`StringKey(s: Str255): TKeyValue`**
+- Generates a B-Tree key from a string
+- Converts string to lowercase for case-insensitive lookups
+- Computes CRC16 hash of the lowercase string
+- Returns the CRC16 value as a LongInt key
+- Use this to create keys for indexing string values like usernames
+
+Example:
+```pascal
+var
+  key: LongInt;
+begin
+  key := StringKey('Username');  { Same as StringKey('username') }
+  Insert(tree, key, 12345);      { Index user ID 12345 under this name }
+end;
+```
+
 ## Testing
 
 Run the B-Tree test suite:
@@ -200,8 +229,9 @@ The test suite covers:
 - Key lookups (existing and non-existent)
 - Value and key deletion
 - Data persistence across close/reopen
+- StringKey utility function (consistency, case-insensitivity, uniqueness)
 
-All 14 tests pass successfully.
+All 17 tests pass successfully.
 
 ## Future Enhancements
 

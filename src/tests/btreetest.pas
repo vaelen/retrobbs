@@ -305,6 +305,54 @@ begin
   end;
 end;
 
+procedure TestStringKey;
+var
+  key1, key2, key3: LongInt;
+begin
+  Write('StringKey generates consistent keys: ');
+  key1 := StringKey('TestString');
+  key2 := StringKey('TestString');
+  if key1 = key2 then
+  begin
+    WriteLn('PASS (key=', key1, ')');
+    Inc(passed);
+  end
+  else
+  begin
+    WriteLn('FAIL (keys don''t match)');
+    Inc(failed);
+  end;
+
+  Write('StringKey is case-insensitive: ');
+  key1 := StringKey('TestString');
+  key2 := StringKey('TESTSTRING');
+  key3 := StringKey('teststring');
+  if (key1 = key2) and (key2 = key3) then
+  begin
+    WriteLn('PASS');
+    Inc(passed);
+  end
+  else
+  begin
+    WriteLn('FAIL (case sensitivity issue)');
+    Inc(failed);
+  end;
+
+  Write('StringKey generates different keys for different strings: ');
+  key1 := StringKey('String1');
+  key2 := StringKey('String2');
+  if key1 <> key2 then
+  begin
+    WriteLn('PASS (key1=', key1, ', key2=', key2, ')');
+    Inc(passed);
+  end
+  else
+  begin
+    WriteLn('FAIL (keys should differ)');
+    Inc(failed);
+  end;
+end;
+
 procedure Cleanup;
 var
   f: File;
@@ -352,6 +400,11 @@ begin
   { Test persistence }
   WriteLn('Persistence:');
   TestPersistence;
+  WriteLn;
+
+  { Test string key utility }
+  WriteLn('String Key Utility:');
+  TestStringKey;
   WriteLn;
 
   { Summary }

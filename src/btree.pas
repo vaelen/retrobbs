@@ -13,6 +13,9 @@ unit BTree;
 
 interface
 
+uses
+  BBSTypes, Hash;
+
 const
   PAGE_SIZE = 512;
   MAX_KEYS = 60;        { Maximum keys per node }
@@ -81,6 +84,11 @@ function Delete(var tree: TBTree; key: TKeyValue): Boolean;
 
 { Delete a specific key-value pair }
 function DeleteValue(var tree: TBTree; key: TKeyValue; value: TKeyValue): Boolean;
+
+{ Utility Functions }
+
+{ Generate a B-Tree key from a string using CRC16 }
+function StringKey(s: Str255): TKeyValue;
 
 implementation
 
@@ -480,6 +488,29 @@ begin
       end;
     end;
   end;
+end;
+
+{ Utility Functions }
+
+function StringKey(s: Str255): TKeyValue;
+var
+  lowerStr: Str255;
+  data: array[0..254] of Byte;
+  i: Integer;
+  crc: Word;
+begin
+  { Convert to lowercase }
+  lowerStr := LowerCase(s);
+
+  { Convert string to byte array }
+  for i := 1 to Length(lowerStr) do
+    data[i - 1] := Ord(lowerStr[i]);
+
+  { Calculate CRC16 }
+  crc := CRC16(data, Length(lowerStr));
+
+  { Convert to LongInt (zero-extend the Word) }
+  StringKey := LongInt(crc);
 end;
 
 end.
