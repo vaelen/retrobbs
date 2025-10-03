@@ -389,7 +389,7 @@ var
   recordID1, recordID2: LongInt;
   result: Boolean;
   i: Integer;
-  initialFreeCount: Word;
+  freeCountBeforeDelete: Word;
 begin
   PrintTestHeader('Test: Free Space Reclamation');
 
@@ -399,20 +399,21 @@ begin
     Exit;
   end;
 
-  initialFreeCount := db.FreeList.FreePageCount;
-
   { Add a record }
   for i := 0 to 127 do
     data[i] := 55;
 
   AddRecord(db, data, recordID1);
 
+  { Save free count before delete }
+  freeCountBeforeDelete := db.FreeList.FreePageCount;
+
   { Delete it }
   result := DeleteRecord(db, recordID1);
   PrintTestResult('Delete record for free space test', result);
 
   { Check free count increased }
-  PrintTestResult('Free page count increased', db.FreeList.FreePageCount > initialFreeCount);
+  PrintTestResult('Free page count increased', db.FreeList.FreePageCount > freeCountBeforeDelete);
 
   { Add another record - should reuse freed space }
   for i := 0 to 127 do

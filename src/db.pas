@@ -83,7 +83,7 @@ type
     FreeList: TDBFreeList;
     DataFile: File;
     JournalFile: File;
-    PrimaryIndex: TBTree;
+    PrimaryIndex: ^TBTree;
     IsOpen: Boolean;
   end;
 
@@ -262,7 +262,7 @@ begin
     Exit;
 
   {$I-}
-  Seek(db.DataFile, pageNum);
+  Seek(db.DataFile, pageNum * PAGE_SIZE);
   BlockRead(db.DataFile, page, PAGE_SIZE, bytesRead);
   {$I+}
 
@@ -280,7 +280,7 @@ begin
     Exit;
 
   {$I-}
-  Seek(db.DataFile, pageNum);
+  Seek(db.DataFile, pageNum * PAGE_SIZE);
   BlockWrite(db.DataFile, page, PAGE_SIZE, bytesWritten);
   {$I+}
 
@@ -300,7 +300,7 @@ begin
     Exit;
 
   {$I-}
-  Seek(db.DataFile, 0);
+  Seek(db.DataFile, 0 * PAGE_SIZE);
   BlockRead(db.DataFile, page, PAGE_SIZE, bytesRead);
   {$I+}
 
@@ -358,7 +358,7 @@ begin
   Move(db.Header.Indexes, page[32], 480);
 
   {$I-}
-  Seek(db.DataFile, 0);
+  Seek(db.DataFile, 0 * PAGE_SIZE);
   BlockWrite(db.DataFile, page, PAGE_SIZE, bytesWritten);
   {$I+}
 
@@ -377,7 +377,7 @@ begin
     Exit;
 
   {$I-}
-  Seek(db.DataFile, 1);
+  Seek(db.DataFile, 1 * PAGE_SIZE);
   BlockRead(db.DataFile, page, PAGE_SIZE, bytesRead);
   {$I+}
 
@@ -408,7 +408,7 @@ begin
   Move(db.FreeList.FreePages, page[4], 508);
 
   {$I-}
-  Seek(db.DataFile, 1);
+  Seek(db.DataFile, 1 * PAGE_SIZE);
   BlockWrite(db.DataFile, page, PAGE_SIZE, bytesWritten);
   {$I+}
 
@@ -637,7 +637,7 @@ begin
   end;
 
   { Append to end of file }
-  fileSizeInPages := GetFileSize(db.DataFile);
+  fileSizeInPages := GetFileSize(db.DataFile) div PAGE_SIZE;
   firstPage := fileSizeInPages;
   AllocatePages := True;
 end;
@@ -688,7 +688,7 @@ begin
   if not db.IsOpen then
     Exit;
 
-  fileSizeInPages := GetFileSize(db.DataFile);
+  fileSizeInPages := GetFileSize(db.DataFile) div PAGE_SIZE;
   freeCount := 0;
   db.FreeList.FreePageListLen := 0;
 
@@ -1091,6 +1091,9 @@ var
 begin
   OpenDatabase := False;
 
+  { Initialize pointer fields }
+  db.PrimaryIndex := nil;
+
   { Open data file }
   Assign(f, name + '.dat');
   {$I-}
@@ -1148,9 +1151,13 @@ begin
     Exit;
   end;
 
+  { Allocate primary index }
+  New(db.PrimaryIndex);
+
   { Open primary index }
-  if not OpenIndexFile(db.PrimaryIndex, name, -1) then
+  if not OpenIndexFile(db.PrimaryIndex^, name, -1) then
   begin
+    Dispose(db.PrimaryIndex);
     Close(db.JournalFile);
     Close(db.DataFile);
     db.IsOpen := False;
@@ -1173,7 +1180,12 @@ begin
   WriteFreeList(db);
 
   { Close indexes }
-  CloseBTree(db.PrimaryIndex);
+  if db.PrimaryIndex <> nil then
+  begin
+    CloseBTree(db.PrimaryIndex^);
+    Dispose(db.PrimaryIndex);
+    db.PrimaryIndex := nil;
+  end;
   { TODO: Close secondary indexes }
 
   { Close files }
@@ -1252,7 +1264,7 @@ begin
   end;
 
   { Insert into primary index }
-  if not InsertIntoIndex(db.PrimaryIndex, recordID, firstPage) then
+  if not InsertIntoIndex(db.PrimaryIndex^, recordID, firstPage) then
   begin
     RollbackTransaction(db);
     Exit;
@@ -1282,7 +1294,7 @@ begin
     Exit;
 
   { Search primary index }
-  if not FindInIndex(db.PrimaryIndex, id, values, count) then
+  if not FindInIndex(db.PrimaryIndex^, id, values, count) then
     Exit;
 
   if count = 0 then
@@ -1320,7 +1332,7 @@ begin
     Exit;
 
   { Get first page from index }
-  if not FindInIndex(db.PrimaryIndex, id, values, count) then
+  if not FindInIndex(db.PrimaryIndex^, id, values, count) then
     Exit;
 
   if count = 0 then
@@ -1400,7 +1412,7 @@ begin
     Exit;
 
   { Get first page from index }
-  if not FindInIndex(db.PrimaryIndex, id, values, count) then
+  if not FindInIndex(db.PrimaryIndex^, id, values, count) then
     Exit;
 
   if count = 0 then
@@ -1435,7 +1447,7 @@ begin
   end;
 
   { Delete from primary index }
-  if not DeleteFromIndex(db.PrimaryIndex, id, firstPage) then
+  if not DeleteFromIndex(db.PrimaryIndex^, id, firstPage) then
   begin
     RollbackTransaction(db);
     Exit;
@@ -1517,7 +1529,7 @@ var
   fileSize: TLong;
   recordID: TLong;
   firstPage: TLong;
-  tree: TBTree;
+  tree: ^TBTree;
 begin
   RebuildIndex := False;
 
@@ -1529,20 +1541,32 @@ begin
     tree := db.PrimaryIndex
   else if (indexNumber >= 0) and (indexNumber < MAX_INDEXES) then
   begin
-    if not OpenIndexFile(tree, db.Name, indexNumber) then
+    New(tree);
+    if not OpenIndexFile(tree^, db.Name, indexNumber) then
+    begin
+      Dispose(tree);
       Exit;
+    end;
   end
   else
     Exit;
 
   { Close and recreate the index to clear it }
-  CloseBTree(tree);
+  CloseBTree(tree^);
   if not CreateIndexFile(db.Name, indexNumber) then
+  begin
+    if indexNumber <> -1 then
+      Dispose(tree);
     Exit;
-  if not OpenIndexFile(tree, db.Name, indexNumber) then
+  end;
+  if not OpenIndexFile(tree^, db.Name, indexNumber) then
+  begin
+    if indexNumber <> -1 then
+      Dispose(tree);
     Exit;
+  end;
 
-  fileSize := GetFileSize(db.DataFile);
+  fileSize := GetFileSize(db.DataFile) div PAGE_SIZE;
 
   { Scan all active records }
   for pageNum := 2 to fileSize - 1 do
@@ -1557,14 +1581,14 @@ begin
         if indexNumber = -1 then
         begin
           { Primary index: recordID -> pageNum }
-          Insert(tree, recordID, firstPage);
+          Insert(tree^, recordID, firstPage);
         end
         else
         begin
           { Secondary index: fieldValue -> recordID }
           { TODO: Extract field value and insert }
           { For now, just insert recordID -> recordID as placeholder }
-          Insert(tree, recordID, recordID);
+          Insert(tree^, recordID, recordID);
         end;
       end;
     end;
@@ -1572,7 +1596,10 @@ begin
 
   { Close tree if it's a secondary index }
   if indexNumber <> -1 then
-    CloseBTree(tree);
+  begin
+    CloseBTree(tree^);
+    Dispose(tree);
+  end;
 
   RebuildIndex := True;
 end;
@@ -1623,7 +1650,7 @@ begin
   if not BeginTransaction(db) then
     Exit;
 
-  fileSize := GetFileSize(db.DataFile);
+  fileSize := GetFileSize(db.DataFile) div PAGE_SIZE;
   newPageNum := 2;  { Start after header and free list }
   mapCount := 0;
 
@@ -1668,7 +1695,7 @@ begin
 
   { Truncate file to remove unused pages }
   {$I-}
-  Seek(db.DataFile, newPageNum);
+  Seek(db.DataFile, newPageNum * PAGE_SIZE);
   Truncate(db.DataFile);
   {$I+}
 
@@ -1739,7 +1766,7 @@ begin
   end;
 
   { Count active and free pages }
-  fileSize := GetFileSize(db.DataFile);
+  fileSize := GetFileSize(db.DataFile) div PAGE_SIZE;
   activeCount := 0;
   freeCount := 0;
 
@@ -1780,7 +1807,7 @@ begin
         recordID := page.ID;
 
         { Check if record exists in primary index }
-        if FindInIndex(db.PrimaryIndex, recordID, values, count) then
+        if FindInIndex(db.PrimaryIndex^, recordID, values, count) then
         begin
           if count = 0 then
           begin
