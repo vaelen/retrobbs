@@ -19,6 +19,8 @@ Units:
   - [BBSTypes](bbstypes.md) - Custom types used in other units
   - [ANSI](ansi.md) - Handles ANSI escape sequences
   - [Hash](hash.md) - CRC and Hashing algorithms
+  - [BTree](btree.md) - A file based BTree implementation
+  - [DB](db.md) - Database utilities
   - [User](user.md) - Code for managing users and handling login
   - Mail - Handles local mail
   - Board - Handles local message boards

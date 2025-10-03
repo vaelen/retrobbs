@@ -180,7 +180,7 @@ begin
   Write('Change user password: ');
   if FindUserByName('testuser', user) then
   begin
-    if SetUserPassword(user.ID, 'newpassword') then
+    if SetUserPasswordByID(user.ID, 'newpassword') then
     begin
       if AuthenticateUser('testuser', 'newpassword') then
       begin
@@ -234,7 +234,7 @@ begin
   if FindUserByName('testuser', user) then
   begin
     user.Access := user.Access or ACCESS_SYSOP;
-    if SaveUser(user) then
+    if UpdateUserByID(user.ID, user) then
     begin
       { Re-load user to verify }
       if FindUserByID(user.ID, user) then
@@ -274,15 +274,10 @@ var
   userID: TUserID;
   user: TUser;
 begin
-  Write('File persistence (reload users): ');
+  Write('File persistence (data persists): ');
 
-  { Save current state }
-  SaveUsers;
-
-  { Clear memory and reload }
-  LoadUsers;
-
-  { Verify user still exists }
+  { File-based storage persists automatically }
+  { Just verify user still exists by reading from file }
   if FindUserByName('testuser', user) then
   begin
     if (user.FullName = 'Test User') and IsSysop(user) then
@@ -298,7 +293,7 @@ begin
   end
   else
   begin
-    WriteLn('FAIL (user not found after reload)');
+    WriteLn('FAIL (user not found)');
     Inc(failed);
   end;
 end;
@@ -311,7 +306,7 @@ begin
 
   if FindUserByName('testuser', user) then
   begin
-    if DeleteUser(user.ID) then
+    if DeleteUserByID(user.ID) then
     begin
       if not FindUserByID(user.ID, user) then
       begin

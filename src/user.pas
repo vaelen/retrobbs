@@ -6,6 +6,9 @@ unit User;
   Manages user accounts and authentication for RetroBBS.
   Users are stored in a text-based data file (users.dat).
 
+  This implementation uses file-based lookups to minimize memory usage.
+  User records are read from and written to the file as needed.
+
   Copyright 2025, Andrew C. Young <andrew@vaelen.org>
   MIT License
 }
@@ -24,7 +27,7 @@ const
 
 type
   TUser = record
-    ID: TUserID;          { Unique User Identifier }
+    ID: TUserID;         { Unique User Identifier }
     Name: Str64;         { Login Name or "Handle" }
     Password: SHA1Hash;  { SHA-1 Hash of Password }
     FullName: Str64;     { Real Name }
@@ -36,14 +39,6 @@ type
 var
   Salt: Str64;           { Password salt string }
 
-{ User File Functions }
-
-{ Load all users from file into memory }
-procedure LoadUsers;
-
-{ Save all users from memory to file }
-procedure SaveUsers;
-
 { User Lookup Functions }
 
 { Find user by ID, returns true if found }
@@ -54,23 +49,35 @@ function FindUserByName(name: Str64; var user: TUser): Boolean;
 
 { User Management Functions }
 
-{ Add a new user, returns the new user ID }
+{ Add a new user, returns the new user ID (0 on failure) }
 function AddUser(name: Str64; password: Str64; fullName: Str64;
                  email: Str64; location: Str64): TUserID;
 
-{ Update an existing user }
-function SaveUser(user: TUser): Boolean;
+{ Update an existing user by ID }
+function UpdateUserByID(id: TUserID; user: TUser): Boolean;
+
+{ Update an existing user by name }
+function UpdateUserByName(name: Str64; user: TUser): Boolean;
 
 { Delete a user by ID }
-function DeleteUser(id: TUserID): Boolean;
+function DeleteUserByID(id: TUserID): Boolean;
+
+{ Delete a user by name }
+function DeleteUserByName(name: Str64): Boolean;
+
+{ Get the next available user ID }
+function GetNextUserID: TUserID;
 
 { Authentication Functions }
 
 { Authenticate user with name and password, returns true if valid }
 function AuthenticateUser(name: Str64; password: Str64): Boolean;
 
-{ Set user password (re-hashes with salt) }
-function SetUserPassword(id: TUserID; password: Str64): Boolean;
+{ Set user password by ID (re-hashes with salt) }
+function SetUserPasswordByID(id: TUserID; password: Str64): Boolean;
+
+{ Set user password by name (re-hashes with salt) }
+function SetUserPasswordByName(name: Str64; password: Str64): Boolean;
 
 { Hash password with salt }
 function HashPassword(password: Str64): SHA1Hash;
@@ -88,35 +95,83 @@ implementation
 uses
   SysUtils;
 
-const
-  MAX_USERS = 1000;
-
+{ Helper function to parse a tab-delimited line into a user record }
+function ParseUserLine(line: Str255; var user: TUser): Boolean;
 var
-  Users: array[0..MAX_USERS-1] of TUser;
-  UserCount: Integer;
-  NextUserID: TUserID;
-
-{ Initialize module }
-procedure InitModule;
+  parts: array[0..6] of Str64;
+  partCount: Integer;
+  currentPart: Str64;
+  ch: Char;
+  i: Integer;
 begin
-  UserCount := 0;
-  NextUserID := 1;
-  Salt := DEFAULT_SALT;
+  ParseUserLine := False;
+
+  { Skip empty lines }
+  if Length(line) = 0 then
+    Exit;
+
+  { Parse tab-delimited line }
+  partCount := 0;
+  currentPart := '';
+
+  for i := 1 to Length(line) do
+  begin
+    ch := line[i];
+    if ch = #9 then  { Tab character }
+    begin
+      if partCount < 7 then
+      begin
+        parts[partCount] := currentPart;
+        Inc(partCount);
+        currentPart := '';
+      end;
+    end
+    else
+      currentPart := currentPart + ch;
+  end;
+
+  { Add last part }
+  if partCount < 7 then
+  begin
+    parts[partCount] := currentPart;
+    Inc(partCount);
+  end;
+
+  { Parse user record if we have all fields }
+  if partCount = 7 then
+  begin
+    user.ID := StrToInt(parts[0]);
+    user.Name := parts[1];
+    user.Password := parts[2];
+    user.FullName := parts[3];
+    user.Email := parts[4];
+    user.Location := parts[5];
+    user.Access := StrToInt(parts[6]);
+    ParseUserLine := True;
+  end;
 end;
 
-{ User File Functions }
+{ Helper function to format a user record as a tab-delimited line }
+function FormatUserLine(user: TUser): Str255;
+begin
+  FormatUserLine := IntToStr(user.ID) + #9 +
+                   user.Name + #9 +
+                   user.Password + #9 +
+                   user.FullName + #9 +
+                   user.Email + #9 +
+                   user.Location + #9 +
+                   IntToStr(user.Access);
+end;
 
-procedure LoadUsers;
+{ User Lookup Functions }
+
+function FindUserByID(id: TUserID; var user: TUser): Boolean;
 var
   f: Text;
   line: Str255;
-  user: TUser;
-  parts: array[0..6] of Str64;
-  i, partCount: Integer;
-  currentPart: Str64;
-  ch: Char;
+  tempUser: TUser;
 begin
-  UserCount := 0;
+  FindUserByID := False;
 
   Assign(f, USER_FILE);
   {$I-}
@@ -124,63 +179,19 @@ begin
   {$I+}
 
   if IOResult <> 0 then
-    Exit; { File doesn't exist yet }
+    Exit; { File doesn't exist }
 
   while not EOF(f) do
   begin
     ReadLn(f, line);
-
-    { Skip empty lines }
-    if Length(line) = 0 then
-      Continue;
-
-    { Parse tab-delimited line }
-    partCount := 0;
-    currentPart := '';
-
-    for i := 1 to Length(line) do
+    if ParseUserLine(line, tempUser) then
     begin
-      ch := line[i];
-      if ch = #9 then  { Tab character }
+      if tempUser.ID = id then
       begin
-        if partCount < 7 then
-        begin
-          parts[partCount] := currentPart;
-          Inc(partCount);
-          currentPart := '';
-        end;
-      end
-      else
-        currentPart := currentPart + ch;
-    end;
-
-    { Add last part }
-    if partCount < 7 then
-    begin
-      parts[partCount] := currentPart;
-      Inc(partCount);
-    end;
-
-    { Parse user record if we have all fields }
-    if partCount = 7 then
-    begin
-      user.ID := StrToInt(parts[0]);
-      user.Name := parts[1];
-      user.Password := parts[2];
-      user.FullName := parts[3];
-      user.Email := parts[4];
-      user.Location := parts[5];
-      user.Access := StrToInt(parts[6]);
-
-      { Store user }
-      if UserCount < MAX_USERS then
-      begin
-        Users[UserCount] := user;
-        Inc(UserCount);
-
-        { Track highest user ID }
-        if user.ID >= NextUserID then
-          NextUserID := user.ID + 1;
+        user := tempUser;
+        FindUserByID := True;
+        Close(f);
+        Exit;
       end;
     end;
   end;
@@ -188,85 +199,90 @@ begin
   Close(f);
 end;
 
-procedure SaveUsers;
+function FindUserByName(name: Str64; var user: TUser): Boolean;
 var
   f: Text;
-  i: Integer;
-  user: TUser;
+  line: Str255;
+  tempUser: TUser;
 begin
+  FindUserByName := False;
+
   Assign(f, USER_FILE);
   {$I-}
-  Rewrite(f);
+  Reset(f);
   {$I+}
 
   if IOResult <> 0 then
-    Exit;
+    Exit; { File doesn't exist }
 
-  for i := 0 to UserCount - 1 do
+  while not EOF(f) do
   begin
-    user := Users[i];
-    WriteLn(f, user.ID, #9, user.Name, #9, user.Password, #9,
-            user.FullName, #9, user.Email, #9, user.Location, #9,
-            user.Access);
+    ReadLn(f, line);
+    if ParseUserLine(line, tempUser) then
+    begin
+      if LowerCase(tempUser.Name) = LowerCase(name) then
+      begin
+        user := tempUser;
+        FindUserByName := True;
+        Close(f);
+        Exit;
+      end;
+    end;
   end;
 
   Close(f);
 end;
 
-{ User Lookup Functions }
-
-function FindUserByID(id: TUserID; var user: TUser): Boolean;
-var
-  i: Integer;
-begin
-  FindUserByID := False;
-
-  for i := 0 to UserCount - 1 do
-  begin
-    if Users[i].ID = id then
-    begin
-      user := Users[i];
-      FindUserByID := True;
-      Exit;
-    end;
-  end;
-end;
-
-function FindUserByName(name: Str64; var user: TUser): Boolean;
-var
-  i: Integer;
-begin
-  FindUserByName := False;
-
-  for i := 0 to UserCount - 1 do
-  begin
-    if LowerCase(Users[i].Name) = LowerCase(name) then
-    begin
-      user := Users[i];
-      FindUserByName := True;
-      Exit;
-    end;
-  end;
-end;
-
 { User Management Functions }
+
+function GetNextUserID: TUserID;
+var
+  f: Text;
+  line: Str255;
+  user: TUser;
+  maxID: TUserID;
+begin
+  maxID := 0;
+
+  Assign(f, USER_FILE);
+  {$I-}
+  Reset(f);
+  {$I+}
+
+  if IOResult <> 0 then
+  begin
+    GetNextUserID := 1; { File doesn't exist, start at 1 }
+    Exit;
+  end;
+
+  while not EOF(f) do
+  begin
+    ReadLn(f, line);
+    if ParseUserLine(line, user) then
+    begin
+      if user.ID > maxID then
+        maxID := user.ID;
+    end;
+  end;
+
+  Close(f);
+  GetNextUserID := maxID + 1;
+end;
 
 function AddUser(name: Str64; password: Str64; fullName: Str64;
                  email: Str64; location: Str64): TUserID;
 var
+  f: Text;
   user: TUser;
 begin
   AddUser := 0;
-
-  if UserCount >= MAX_USERS then
-    Exit;
 
   { Check if user already exists }
   if FindUserByName(name, user) then
     Exit;
 
   { Create new user }
-  user.ID := NextUserID;
+  user.ID := GetNextUserID;
   user.Name := name;
   user.Password := HashPassword(password);
   user.FullName := fullName;
@@ -274,54 +290,283 @@ begin
   user.Location := location;
   user.Access := 0;
 
-  { Store user }
-  Users[UserCount] := user;
-  Inc(UserCount);
-  Inc(NextUserID);
+  { Append to file }
+  Assign(f, USER_FILE);
+  {$I-}
+  Append(f);
+  {$I+}
 
-  { Save to file }
-  SaveUsers;
+  if IOResult <> 0 then
+  begin
+    { File doesn't exist, create it }
+    {$I-}
+    Rewrite(f);
+    {$I+}
+    if IOResult <> 0 then
+      Exit;
+  end;
+
+  WriteLn(f, FormatUserLine(user));
+  Close(f);
 
   AddUser := user.ID;
 end;
 
-function SaveUser(user: TUser): Boolean;
+function UpdateUserByID(id: TUserID; user: TUser): Boolean;
 var
-  i: Integer;
+  oldFile, newFile: Text;
+  line: Str255;
+  tempUser: TUser;
+  found: Boolean;
 begin
-  SaveUser := False;
+  UpdateUserByID := False;
+  found := False;
 
-  for i := 0 to UserCount - 1 do
+  Assign(oldFile, USER_FILE);
+  {$I-}
+  Reset(oldFile);
+  {$I+}
+
+  if IOResult <> 0 then
+    Exit; { File doesn't exist }
+
+  Assign(newFile, USER_FILE + '.tmp');
+  {$I-}
+  Rewrite(newFile);
+  {$I+}
+
+  if IOResult <> 0 then
   begin
-    if Users[i].ID = user.ID then
+    Close(oldFile);
+    Exit;
+  end;
+
+  { Copy all records, replacing the matching one }
+  while not EOF(oldFile) do
+  begin
+    ReadLn(oldFile, line);
+    if ParseUserLine(line, tempUser) then
     begin
-      Users[i] := user;
-      SaveUsers;
-      SaveUser := True;
-      Exit;
+      if tempUser.ID = id then
+      begin
+        WriteLn(newFile, FormatUserLine(user));
+        found := True;
+      end
+      else
+        WriteLn(newFile, line);
     end;
+  end;
+
+  Close(oldFile);
+  Close(newFile);
+
+  if found then
+  begin
+    { Replace old file with new file }
+    {$I-}
+    Erase(oldFile);
+    Rename(newFile, USER_FILE);
+    {$I+}
+    UpdateUserByID := IOResult = 0;
+  end
+  else
+  begin
+    { Not found, remove temp file }
+    {$I-}
+    Erase(newFile);
+    {$I+}
   end;
 end;
 
-function DeleteUser(id: TUserID): Boolean;
+function UpdateUserByName(name: Str64; user: TUser): Boolean;
 var
-  i, j: Integer;
+  oldFile, newFile: Text;
+  line: Str255;
+  tempUser: TUser;
+  found: Boolean;
 begin
-  DeleteUser := False;
+  UpdateUserByName := False;
+  found := False;
 
-  for i := 0 to UserCount - 1 do
+  Assign(oldFile, USER_FILE);
+  {$I-}
+  Reset(oldFile);
+  {$I+}
+
+  if IOResult <> 0 then
+    Exit; { File doesn't exist }
+
+  Assign(newFile, USER_FILE + '.tmp');
+  {$I-}
+  Rewrite(newFile);
+  {$I+}
+
+  if IOResult <> 0 then
   begin
-    if Users[i].ID = id then
-    begin
-      { Shift all users after this one down }
-      for j := i to UserCount - 2 do
-        Users[j] := Users[j + 1];
+    Close(oldFile);
+    Exit;
+  end;
 
-      Dec(UserCount);
-      SaveUsers;
-      DeleteUser := True;
-      Exit;
+  { Copy all records, replacing the matching one }
+  while not EOF(oldFile) do
+  begin
+    ReadLn(oldFile, line);
+    if ParseUserLine(line, tempUser) then
+    begin
+      if LowerCase(tempUser.Name) = LowerCase(name) then
+      begin
+        WriteLn(newFile, FormatUserLine(user));
+        found := True;
+      end
+      else
+        WriteLn(newFile, line);
     end;
+  end;
+
+  Close(oldFile);
+  Close(newFile);
+
+  if found then
+  begin
+    { Replace old file with new file }
+    {$I-}
+    Erase(oldFile);
+    Rename(newFile, USER_FILE);
+    {$I+}
+    UpdateUserByName := IOResult = 0;
+  end
+  else
+  begin
+    { Not found, remove temp file }
+    {$I-}
+    Erase(newFile);
+    {$I+}
+  end;
+end;
+
+function DeleteUserByID(id: TUserID): Boolean;
+var
+  oldFile, newFile: Text;
+  line: Str255;
+  user: TUser;
+  found: Boolean;
+begin
+  DeleteUserByID := False;
+  found := False;
+
+  Assign(oldFile, USER_FILE);
+  {$I-}
+  Reset(oldFile);
+  {$I+}
+
+  if IOResult <> 0 then
+    Exit; { File doesn't exist }
+
+  Assign(newFile, USER_FILE + '.tmp');
+  {$I-}
+  Rewrite(newFile);
+  {$I+}
+
+  if IOResult <> 0 then
+  begin
+    Close(oldFile);
+    Exit;
+  end;
+
+  { Copy all records except the one to delete }
+  while not EOF(oldFile) do
+  begin
+    ReadLn(oldFile, line);
+    if ParseUserLine(line, user) then
+    begin
+      if user.ID = id then
+        found := True
+      else
+        WriteLn(newFile, line);
+    end;
+  end;
+
+  Close(oldFile);
+  Close(newFile);
+
+  if found then
+  begin
+    { Replace old file with new file }
+    {$I-}
+    Erase(oldFile);
+    Rename(newFile, USER_FILE);
+    {$I+}
+    DeleteUserByID := IOResult = 0;
+  end
+  else
+  begin
+    { Not found, remove temp file }
+    {$I-}
+    Erase(newFile);
+    {$I+}
+  end;
+end;
+
+function DeleteUserByName(name: Str64): Boolean;
+var
+  oldFile, newFile: Text;
+  line: Str255;
+  user: TUser;
+  found: Boolean;
+begin
+  DeleteUserByName := False;
+  found := False;
+
+  Assign(oldFile, USER_FILE);
+  {$I-}
+  Reset(oldFile);
+  {$I+}
+
+  if IOResult <> 0 then
+    Exit; { File doesn't exist }
+
+  Assign(newFile, USER_FILE + '.tmp');
+  {$I-}
+  Rewrite(newFile);
+  {$I+}
+
+  if IOResult <> 0 then
+  begin
+    Close(oldFile);
+    Exit;
+  end;
+
+  { Copy all records except the one to delete }
+  while not EOF(oldFile) do
+  begin
+    ReadLn(oldFile, line);
+    if ParseUserLine(line, user) then
+    begin
+      if LowerCase(user.Name) = LowerCase(name) then
+        found := True
+      else
+        WriteLn(newFile, line);
+    end;
+  end;
+
+  Close(oldFile);
+  Close(newFile);
+
+  if found then
+  begin
+    { Replace old file with new file }
+    {$I-}
+    Erase(oldFile);
+    Rename(newFile, USER_FILE);
+    {$I+}
+    DeleteUserByName := IOResult = 0;
+  end
+  else
+  begin
+    { Not found, remove temp file }
+    {$I-}
+    Erase(newFile);
+    {$I+}
   end;
 end;
 
@@ -366,17 +611,30 @@ begin
     AuthenticateUser := True;
 end;
 
-function SetUserPassword(id: TUserID; password: Str64): Boolean;
+function SetUserPasswordByID(id: TUserID; password: Str64): Boolean;
 var
   user: TUser;
 begin
-  SetUserPassword := False;
+  SetUserPasswordByID := False;
 
   if not FindUserByID(id, user) then
     Exit;
 
   user.Password := HashPassword(password);
-  SetUserPassword := SaveUser(user);
+  SetUserPasswordByID := UpdateUserByID(id, user);
+end;
+
+function SetUserPasswordByName(name: Str64; password: Str64): Boolean;
+var
+  user: TUser;
+begin
+  SetUserPasswordByName := False;
+
+  if not FindUserByName(name, user) then
+    Exit;
+
+  user.Password := HashPassword(password);
+  SetUserPasswordByName := UpdateUserByName(name, user);
 end;
 
 { Access Control Functions }
@@ -393,5 +651,5 @@ end;
 
 { Module initialization }
 begin
-  InitModule;
+  Salt := DEFAULT_SALT;
 end.
