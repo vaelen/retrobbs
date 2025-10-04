@@ -157,6 +157,7 @@ tests/<unit>/              # Test data files and artifacts
 - **`bin/tests/all`**: Compiled master test suite
 - The master suite calls each unit's `all` binary to execute all tests for that unit
 - This hierarchical approach keeps test organization manageable
+- **Note**: A unit doesn't need an `all.pas` test file if there is only a single test file in the unit
 
 ### Naming Conventions
 

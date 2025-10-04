@@ -62,6 +62,7 @@ begin
   RunTest('bin/tests/hash/test', 'Hash Unit Tests');
   RunTest('bin/tests/ansi/test', 'ANSI Unit Tests');
   RunTest('bin/tests/btree/test', 'BTree Unit Tests');
+  RunTest('bin/tests/path/test', 'Path Unit Tests');
   RunTest('bin/tests/user/test', 'User Unit Tests');
   RunTest('bin/tests/db/test', 'DB Unit Tests');
 

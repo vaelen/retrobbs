@@ -23,7 +23,7 @@ Units:
   - [DB](db.md) - Database utilities
   - [User](user.md) - Code for managing users and handling login
   - [Mail](mail.md) - Handles local mail
-  - [Path](path.md5) - Path abstraction layer to support multiple operating systems.
+  - [Path](path.md) - Path abstraction layer to support multiple operating systems.
   - Board - Handles local message boards
   - Editor - A full screen text editor
   - FileArea - Handles file areas
