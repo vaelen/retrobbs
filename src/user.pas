@@ -4,10 +4,10 @@ unit User;
   User Management Library
 
   Manages user accounts and authentication for RetroBBS.
-  Users are stored in a text-based data file (users.dat).
+  Users are stored in a database file using the DB unit.
 
-  This implementation uses file-based lookups to minimize memory usage.
-  User records are read from and written to the file as needed.
+  This implementation uses database lookups to minimize memory usage.
+  User records are read from and written to the database as needed.
 
   Copyright 2025, Andrew C. Young <andrew@vaelen.org>
   MIT License
@@ -16,11 +16,12 @@ unit User;
 interface
 
 uses
-  BBSTypes, Hash;
+  BBSTypes, Hash, DB;
 
 const
-  USER_FILE = 'users.dat';
+  USER_DB = 'users';
   DEFAULT_SALT = 'retro';
+  USER_RECORD_SIZE = 304;  { Fixed size for database storage: 2+64+42+64+64+64+2+2(padding) }
 
   { Access Control Bits }
   ACCESS_SYSOP = $8000;  { Bit 15: System Operator }
@@ -38,6 +39,15 @@ type
 
 var
   Salt: Str63;           { Password salt string }
+  UserDatabase: TDatabase;  { User database }
+
+{ Database Management Functions }
+
+{ Initialize the user database (creates if doesn't exist) }
+function InitUserDatabase: Boolean;
+
+{ Close the user database }
+procedure CloseUserDatabase;
 
 { User Lookup Functions }
 
@@ -64,9 +74,6 @@ function DeleteUserByID(id: TUserID): Boolean;
 
 { Delete a user by name }
 function DeleteUserByName(name: Str63): Boolean;
-
-{ Get the next available user ID }
-function GetNextUserID: TUserID;
 
 { Authentication Functions }
 
@@ -95,194 +102,269 @@ implementation
 uses
   SysUtils;
 
-{ Helper function to parse a tab-delimited line into a user record }
-function ParseUserLine(line: Str255; var user: TUser): Boolean;
+{ Helper function to serialize a user record into a byte array }
+procedure UserToBytes(const user: TUser; var data: array of Byte);
 var
-  parts: array[0..6] of Str63;
-  partCount: TInt;
-  currentPart: Str63;
-  ch: Char;
   i: TInt;
+  offset: TInt;
+  len: Byte;
 begin
-  ParseUserLine := False;
+  FillChar(data, USER_RECORD_SIZE, 0);
+  offset := 0;
 
-  { Skip empty lines }
-  if Length(line) = 0 then
-    Exit;
+  { ID - 2 bytes }
+  Move(user.ID, data[offset], 2);
+  Inc(offset, 2);
 
-  { Parse tab-delimited line }
-  partCount := 0;
-  currentPart := '';
-
-  for i := 1 to Length(line) do
+  { Name - Pascal string (length + data) }
+  len := Length(user.Name);
+  data[offset] := len;
+  Inc(offset);
+  for i := 1 to len do
   begin
-    ch := line[i];
-    if ch = #9 then  { Tab character }
-    begin
-      if partCount < 7 then
-      begin
-        parts[partCount] := currentPart;
-        Inc(partCount);
-        currentPart := '';
-      end;
-    end
-    else
-      currentPart := currentPart + ch;
+    data[offset] := Ord(user.Name[i]);
+    Inc(offset);
   end;
+  Inc(offset, 63 - len);  { Skip to next field }
 
-  { Add last part }
-  if partCount < 7 then
+  { Password - Pascal string }
+  len := Length(user.Password);
+  data[offset] := len;
+  Inc(offset);
+  for i := 1 to len do
   begin
-    parts[partCount] := currentPart;
-    Inc(partCount);
+    data[offset] := Ord(user.Password[i]);
+    Inc(offset);
   end;
+  Inc(offset, 41 - len);  { Skip to next field }
 
-  { Parse user record if we have all fields }
-  if partCount = 7 then
+  { FullName - Pascal string }
+  len := Length(user.FullName);
+  data[offset] := len;
+  Inc(offset);
+  for i := 1 to len do
   begin
-    user.ID := StrToInt(parts[0]);
-    user.Name := parts[1];
-    user.Password := parts[2];
-    user.FullName := parts[3];
-    user.Email := parts[4];
-    user.Location := parts[5];
-    user.Access := StrToInt(parts[6]);
-    ParseUserLine := True;
+    data[offset] := Ord(user.FullName[i]);
+    Inc(offset);
   end;
+  Inc(offset, 63 - len);
+
+  { Email - Pascal string }
+  len := Length(user.Email);
+  data[offset] := len;
+  Inc(offset);
+  for i := 1 to len do
+  begin
+    data[offset] := Ord(user.Email[i]);
+    Inc(offset);
+  end;
+  Inc(offset, 63 - len);
+
+  { Location - Pascal string }
+  len := Length(user.Location);
+  data[offset] := len;
+  Inc(offset);
+  for i := 1 to len do
+  begin
+    data[offset] := Ord(user.Location[i]);
+    Inc(offset);
+  end;
+  Inc(offset, 63 - len);
+
+  { Access - 2 bytes }
+  Move(user.Access, data[offset], 2);
 end;
 
-{ Helper function to format a user record as a tab-delimited line }
-function FormatUserLine(user: TUser): Str255;
+{ Helper function to deserialize a byte array into a user record }
+procedure BytesToUser(const data: array of Byte; var user: TUser);
+var
+  i: TInt;
+  offset: TInt;
+  len: Byte;
 begin
-  FormatUserLine := IntToStr(user.ID) + #9 +
-                   user.Name + #9 +
-                   user.Password + #9 +
-                   user.FullName + #9 +
-                   user.Email + #9 +
-                   user.Location + #9 +
-                   IntToStr(user.Access);
+  offset := 0;
+
+  { ID - 2 bytes }
+  Move(data[offset], user.ID, 2);
+  Inc(offset, 2);
+
+  { Name - Pascal string }
+  len := data[offset];
+  Inc(offset);
+  user.Name := '';
+  for i := 1 to len do
+  begin
+    user.Name := user.Name + Chr(data[offset]);
+    Inc(offset);
+  end;
+  Inc(offset, 63 - len);
+
+  { Password - Pascal string }
+  len := data[offset];
+  Inc(offset);
+  user.Password := '';
+  for i := 1 to len do
+  begin
+    user.Password := user.Password + Chr(data[offset]);
+    Inc(offset);
+  end;
+  Inc(offset, 41 - len);
+
+  { FullName - Pascal string }
+  len := data[offset];
+  Inc(offset);
+  user.FullName := '';
+  for i := 1 to len do
+  begin
+    user.FullName := user.FullName + Chr(data[offset]);
+    Inc(offset);
+  end;
+  Inc(offset, 63 - len);
+
+  { Email - Pascal string }
+  len := data[offset];
+  Inc(offset);
+  user.Email := '';
+  for i := 1 to len do
+  begin
+    user.Email := user.Email + Chr(data[offset]);
+    Inc(offset);
+  end;
+  Inc(offset, 63 - len);
+
+  { Location - Pascal string }
+  len := data[offset];
+  Inc(offset);
+  user.Location := '';
+  for i := 1 to len do
+  begin
+    user.Location := user.Location + Chr(data[offset]);
+    Inc(offset);
+  end;
+  Inc(offset, 63 - len);
+
+  { Access - 2 bytes }
+  Move(data[offset], user.Access, 2);
+end;
+
+{ Database Management Functions }
+
+function InitUserDatabase: Boolean;
+var
+  dbExists: Boolean;
+  f: File;
+begin
+  InitUserDatabase := False;
+
+  { Check if database exists }
+  Assign(f, USER_DB + '.dat');
+  {$I-}
+  Reset(f, 1);
+  {$I+}
+  dbExists := (IOResult = 0);
+  if dbExists then
+    Close(f);
+
+  if not dbExists then
+  begin
+    { Create new database }
+    if not CreateDatabase(USER_DB, USER_RECORD_SIZE) then
+      Exit;
+  end;
+
+  { Open database }
+  if not OpenDatabase(USER_DB, UserDatabase) then
+    Exit;
+
+  { Add secondary index for name lookups if creating new database }
+  if not dbExists then
+  begin
+    if not AddIndex(UserDatabase, 'Name', itString) then
+    begin
+      CloseDatabase(UserDatabase);
+      Exit;
+    end;
+  end;
+
+  InitUserDatabase := True;
+end;
+
+procedure CloseUserDatabase;
+begin
+  if UserDatabase.IsOpen then
+    CloseDatabase(UserDatabase);
 end;
 
 { User Lookup Functions }
 
 function FindUserByID(id: TUserID; var user: TUser): Boolean;
 var
-  f: Text;
-  line: Str255;
-  tempUser: TUser;
+  data: array[0..303] of Byte;
 begin
   FindUserByID := False;
 
-  Assign(f, USER_FILE);
-  {$I-}
-  Reset(f);
-  {$I+}
+  if not UserDatabase.IsOpen then
+    if not InitUserDatabase then
+      Exit;
 
-  if IOResult <> 0 then
-    Exit; { File doesn't exist }
-
-  while not EOF(f) do
+  if FindRecordByID(UserDatabase, id, data) then
   begin
-    ReadLn(f, line);
-    if ParseUserLine(line, tempUser) then
-    begin
-      if tempUser.ID = id then
-      begin
-        user := tempUser;
-        FindUserByID := True;
-        Close(f);
-        Exit;
-      end;
-    end;
+    BytesToUser(data, user);
+    FindUserByID := True;
   end;
-
-  Close(f);
 end;
 
 function FindUserByName(name: Str63; var user: TUser): Boolean;
 var
-  f: Text;
-  line: Str255;
+  data: array[0..303] of Byte;
+  recordID: TLong;
   tempUser: TUser;
+  i: TLong;
 begin
   FindUserByName := False;
 
-  Assign(f, USER_FILE);
-  {$I-}
-  Reset(f);
-  {$I+}
+  if not UserDatabase.IsOpen then
+    if not InitUserDatabase then
+      Exit;
 
-  if IOResult <> 0 then
-    Exit; { File doesn't exist }
-
-  while not EOF(f) do
+  { Scan through all records to find user by name }
+  { TODO: Use secondary index when FindRecordByString is implemented }
+  for i := 1 to UserDatabase.Header.NextRecordID - 1 do
   begin
-    ReadLn(f, line);
-    if ParseUserLine(line, tempUser) then
+    if FindRecordByID(UserDatabase, i, data) then
     begin
+      BytesToUser(data, tempUser);
       if LowerCase(tempUser.Name) = LowerCase(name) then
       begin
         user := tempUser;
         FindUserByName := True;
-        Close(f);
         Exit;
       end;
     end;
   end;
-
-  Close(f);
 end;
 
 { User Management Functions }
 
-function GetNextUserID: TUserID;
-var
-  f: Text;
-  line: Str255;
-  user: TUser;
-  maxID: TUserID;
-begin
-  maxID := 0;
-
-  Assign(f, USER_FILE);
-  {$I-}
-  Reset(f);
-  {$I+}
-
-  if IOResult <> 0 then
-  begin
-    GetNextUserID := 1; { File doesn't exist, start at 1 }
-    Exit;
-  end;
-
-  while not EOF(f) do
-  begin
-    ReadLn(f, line);
-    if ParseUserLine(line, user) then
-    begin
-      if user.ID > maxID then
-        maxID := user.ID;
-    end;
-  end;
-
-  Close(f);
-  GetNextUserID := maxID + 1;
-end;
-
 function AddUser(name: Str63; password: Str63; fullName: Str63;
                  email: Str63; location: Str63): TUserID;
 var
-  f: Text;
   user: TUser;
+  data: array[0..303] of Byte;
+  recordID: TLong;
 begin
   AddUser := 0;
+
+  if not UserDatabase.IsOpen then
+    if not InitUserDatabase then
+      Exit;
 
   { Check if user already exists }
   if FindUserByName(name, user) then
     Exit;
 
   { Create new user }
-  user.ID := GetNextUserID;
+  user.ID := UserDatabase.Header.NextRecordID;
   user.Name := name;
   user.Password := HashPassword(password);
   user.FullName := fullName;
@@ -290,284 +372,79 @@ begin
   user.Location := location;
   user.Access := 0;
 
-  { Append to file }
-  Assign(f, USER_FILE);
-  {$I-}
-  Append(f);
-  {$I+}
+  { Convert to bytes }
+  UserToBytes(user, data);
 
-  if IOResult <> 0 then
-  begin
-    { File doesn't exist, create it }
-    {$I-}
-    Rewrite(f);
-    {$I+}
-    if IOResult <> 0 then
-      Exit;
-  end;
-
-  WriteLn(f, FormatUserLine(user));
-  Close(f);
-
-  AddUser := user.ID;
+  { Add to database }
+  if AddRecord(UserDatabase, data, recordID) then
+    AddUser := user.ID;
 end;
 
 function UpdateUserByID(id: TUserID; user: TUser): Boolean;
 var
-  oldFile, newFile: Text;
-  line: Str255;
-  tempUser: TUser;
-  found: Boolean;
+  data: array[0..303] of Byte;
 begin
   UpdateUserByID := False;
-  found := False;
 
-  Assign(oldFile, USER_FILE);
-  {$I-}
-  Reset(oldFile);
-  {$I+}
+  if not UserDatabase.IsOpen then
+    if not InitUserDatabase then
+      Exit;
 
-  if IOResult <> 0 then
-    Exit; { File doesn't exist }
+  { Ensure ID matches }
+  user.ID := id;
 
-  Assign(newFile, USER_FILE + '.tmp');
-  {$I-}
-  Rewrite(newFile);
-  {$I+}
+  { Convert to bytes }
+  UserToBytes(user, data);
 
-  if IOResult <> 0 then
-  begin
-    Close(oldFile);
-    Exit;
-  end;
-
-  { Copy all records, replacing the matching one }
-  while not EOF(oldFile) do
-  begin
-    ReadLn(oldFile, line);
-    if ParseUserLine(line, tempUser) then
-    begin
-      if tempUser.ID = id then
-      begin
-        WriteLn(newFile, FormatUserLine(user));
-        found := True;
-      end
-      else
-        WriteLn(newFile, line);
-    end;
-  end;
-
-  Close(oldFile);
-  Close(newFile);
-
-  if found then
-  begin
-    { Replace old file with new file }
-    {$I-}
-    Erase(oldFile);
-    Rename(newFile, USER_FILE);
-    {$I+}
-    UpdateUserByID := IOResult = 0;
-  end
-  else
-  begin
-    { Not found, remove temp file }
-    {$I-}
-    Erase(newFile);
-    {$I+}
-  end;
+  { Update in database }
+  UpdateUserByID := UpdateRecord(UserDatabase, id, data);
 end;
 
 function UpdateUserByName(name: Str63; user: TUser): Boolean;
 var
-  oldFile, newFile: Text;
-  line: Str255;
-  tempUser: TUser;
-  found: Boolean;
+  existingUser: TUser;
 begin
   UpdateUserByName := False;
-  found := False;
 
-  Assign(oldFile, USER_FILE);
-  {$I-}
-  Reset(oldFile);
-  {$I+}
+  if not UserDatabase.IsOpen then
+    if not InitUserDatabase then
+      Exit;
 
-  if IOResult <> 0 then
-    Exit; { File doesn't exist }
-
-  Assign(newFile, USER_FILE + '.tmp');
-  {$I-}
-  Rewrite(newFile);
-  {$I+}
-
-  if IOResult <> 0 then
-  begin
-    Close(oldFile);
+  { Find user by name to get ID }
+  if not FindUserByName(name, existingUser) then
     Exit;
-  end;
 
-  { Copy all records, replacing the matching one }
-  while not EOF(oldFile) do
-  begin
-    ReadLn(oldFile, line);
-    if ParseUserLine(line, tempUser) then
-    begin
-      if LowerCase(tempUser.Name) = LowerCase(name) then
-      begin
-        WriteLn(newFile, FormatUserLine(user));
-        found := True;
-      end
-      else
-        WriteLn(newFile, line);
-    end;
-  end;
-
-  Close(oldFile);
-  Close(newFile);
-
-  if found then
-  begin
-    { Replace old file with new file }
-    {$I-}
-    Erase(oldFile);
-    Rename(newFile, USER_FILE);
-    {$I+}
-    UpdateUserByName := IOResult = 0;
-  end
-  else
-  begin
-    { Not found, remove temp file }
-    {$I-}
-    Erase(newFile);
-    {$I+}
-  end;
+  { Update using ID }
+  UpdateUserByName := UpdateUserByID(existingUser.ID, user);
 end;
 
 function DeleteUserByID(id: TUserID): Boolean;
-var
-  oldFile, newFile: Text;
-  line: Str255;
-  user: TUser;
-  found: Boolean;
 begin
   DeleteUserByID := False;
-  found := False;
 
-  Assign(oldFile, USER_FILE);
-  {$I-}
-  Reset(oldFile);
-  {$I+}
+  if not UserDatabase.IsOpen then
+    if not InitUserDatabase then
+      Exit;
 
-  if IOResult <> 0 then
-    Exit; { File doesn't exist }
-
-  Assign(newFile, USER_FILE + '.tmp');
-  {$I-}
-  Rewrite(newFile);
-  {$I+}
-
-  if IOResult <> 0 then
-  begin
-    Close(oldFile);
-    Exit;
-  end;
-
-  { Copy all records except the one to delete }
-  while not EOF(oldFile) do
-  begin
-    ReadLn(oldFile, line);
-    if ParseUserLine(line, user) then
-    begin
-      if user.ID = id then
-        found := True
-      else
-        WriteLn(newFile, line);
-    end;
-  end;
-
-  Close(oldFile);
-  Close(newFile);
-
-  if found then
-  begin
-    { Replace old file with new file }
-    {$I-}
-    Erase(oldFile);
-    Rename(newFile, USER_FILE);
-    {$I+}
-    DeleteUserByID := IOResult = 0;
-  end
-  else
-  begin
-    { Not found, remove temp file }
-    {$I-}
-    Erase(newFile);
-    {$I+}
-  end;
+  DeleteUserByID := DeleteRecord(UserDatabase, id);
 end;
 
 function DeleteUserByName(name: Str63): Boolean;
 var
-  oldFile, newFile: Text;
-  line: Str255;
   user: TUser;
-  found: Boolean;
 begin
   DeleteUserByName := False;
-  found := False;
 
-  Assign(oldFile, USER_FILE);
-  {$I-}
-  Reset(oldFile);
-  {$I+}
+  if not UserDatabase.IsOpen then
+    if not InitUserDatabase then
+      Exit;
 
-  if IOResult <> 0 then
-    Exit; { File doesn't exist }
-
-  Assign(newFile, USER_FILE + '.tmp');
-  {$I-}
-  Rewrite(newFile);
-  {$I+}
-
-  if IOResult <> 0 then
-  begin
-    Close(oldFile);
+  { Find user by name to get ID }
+  if not FindUserByName(name, user) then
     Exit;
-  end;
 
-  { Copy all records except the one to delete }
-  while not EOF(oldFile) do
-  begin
-    ReadLn(oldFile, line);
-    if ParseUserLine(line, user) then
-    begin
-      if LowerCase(user.Name) = LowerCase(name) then
-        found := True
-      else
-        WriteLn(newFile, line);
-    end;
-  end;
-
-  Close(oldFile);
-  Close(newFile);
-
-  if found then
-  begin
-    { Replace old file with new file }
-    {$I-}
-    Erase(oldFile);
-    Rename(newFile, USER_FILE);
-    {$I+}
-    DeleteUserByName := IOResult = 0;
-  end
-  else
-  begin
-    { Not found, remove temp file }
-    {$I-}
-    Erase(newFile);
-    {$I+}
-  end;
+  { Delete using ID }
+  DeleteUserByName := DeleteUserByID(user.ID);
 end;
 
 { Authentication Functions }
@@ -654,4 +531,5 @@ end;
 { Module initialization }
 begin
   Salt := DEFAULT_SALT;
+  UserDatabase.IsOpen := False;
 end.

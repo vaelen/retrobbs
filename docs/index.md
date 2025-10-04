@@ -22,18 +22,11 @@ Units:
   - [BTree](btree.md) - A file based BTree implementation
   - [DB](db.md) - Database utilities
   - [User](user.md) - Code for managing users and handling login
-  - Mail - Handles local mail
+  - [Mail](mail.md) - Handles local mail
+  - [Path](path.md5) - Path abstraction layer to support multiple operating systems.
   - Board - Handles local message boards
   - Editor - A full screen text editor
   - FileArea - Handles file areas
-  - XModem - an implementation of the XModem file transfer protocol
-  - ZModem - an implementation of the ZModem file transfer protocol
-  - Kermit - an implementation of the Kermit file transfer protocol
-  - FidoNet - Handles the FidoNet mail system
-  - Binkp - Handles the Binkp transport system for FidoNet
-  - Serial - Handles serial ports and modems
-  - Net - Handles TCP/IP connections
-  - OS - Operating System specific functionsile areas
   - XModem - an implementation of the XModem file transfer protocol
   - ZModem - an implementation of the ZModem file transfer protocol
   - Kermit - an implementation of the Kermit file transfer protocol
@@ -41,5 +34,5 @@ Units:
   - Binkp - Handles the Binkp transport system for FidoNet
   - Serial - Handles serial ports and modems
   - Net - Handles TCP/IP connections
-  - OS - Operating System specific functions
+
 

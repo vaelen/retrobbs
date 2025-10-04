@@ -334,10 +334,28 @@ end;
 
 procedure Cleanup;
 var
-  f: Text;
+  f: File;
 begin
-  { Remove test file }
-  Assign(f, USER_FILE);
+  { Close database }
+  CloseUserDatabase;
+
+  { Remove test database files }
+  Assign(f, 'users.dat');
+  {$I-}
+  Erase(f);
+  {$I+}
+
+  Assign(f, 'users.jnl');
+  {$I-}
+  Erase(f);
+  {$I+}
+
+  Assign(f, 'users.idx');
+  {$I-}
+  Erase(f);
+  {$I+}
+
+  Assign(f, 'users.i00');
   {$I-}
   Erase(f);
   {$I+}
