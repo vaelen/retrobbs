@@ -19,71 +19,71 @@ const
   ESC = #27;  { ASCII Escape character }
 
 { Cursor Movement Functions }
-procedure CursorUp(lines: TInt);
-procedure CursorDown(lines: TInt);
-procedure CursorForward(chars: TInt);
-procedure CursorBackward(chars: TInt);
-procedure CursorPosition(line, column: TInt);
-procedure CursorHome;
+procedure CursorUp(var output: Text; lines: TInt);
+procedure CursorDown(var output: Text; lines: TInt);
+procedure CursorForward(var output: Text; chars: TInt);
+procedure CursorBackward(var output: Text; chars: TInt);
+procedure CursorPosition(var output: Text; line, column: TInt);
+procedure CursorHome(var output: Text);
 
 { Cursor Save/Restore }
-procedure SaveCursor;
-procedure RestoreCursor;
+procedure SaveCursor(var output: Text);
+procedure RestoreCursor(var output: Text);
 
 { Screen Clearing Functions }
-procedure ClearScreen;
-procedure ClearToEndOfScreen;
-procedure ClearToEndOfLine;
-procedure ClearFromBeginningOfLine;
-procedure ClearLine;
+procedure ClearScreen(var output: Text);
+procedure ClearToEndOfScreen(var output: Text);
+procedure ClearToEndOfLine(var output: Text);
+procedure ClearFromBeginningOfLine(var output: Text);
+procedure ClearLine(var output: Text);
 
 { Text Attribute Functions }
-procedure ResetAttributes;
-procedure SetBold;
-procedure SetUnderscore;
-procedure SetBlink;
-procedure SetReverseVideo;
+procedure ResetAttributes(var output: Text);
+procedure SetBold(var output: Text);
+procedure SetUnderscore(var output: Text);
+procedure SetBlink(var output: Text);
+procedure SetReverseVideo(var output: Text);
 
 { Combined Attribute Function }
-procedure SetAttributes(bold, underscore, blink, reverse: Boolean);
+procedure SetAttributes(var output: Text; bold, underscore, blink, reverse: Boolean);
 
 { Line Display Mode Functions }
-procedure SetDoubleHeightTop;
-procedure SetDoubleHeightBottom;
-procedure SetSingleWidthHeight;
-procedure SetDoubleWidthHeight;
+procedure SetDoubleHeightTop(var output: Text);
+procedure SetDoubleHeightBottom(var output: Text);
+procedure SetSingleWidthHeight(var output: Text);
+procedure SetDoubleWidthHeight(var output: Text);
 
 { Index Functions }
-procedure Index;
-procedure ReverseIndex;
+procedure Index(var output: Text);
+procedure ReverseIndex(var output: Text);
 
 { Cursor Visibility }
-procedure ShowCursor;
-procedure HideCursor;
+procedure ShowCursor(var output: Text);
+procedure HideCursor(var output: Text);
 
 { Cursor Positioning (Additional) }
-procedure CarriageReturnLineFeed;
+procedure CarriageReturnLineFeed(var output: Text);
 
 { Edit Mode Functions }
-procedure SetInsertMode;
-procedure SetReplacementMode;
-procedure SetEnterImmediate;
-procedure SetEnterDeferred;
-procedure SetEditImmediate;
-procedure SetEditDeferred;
+procedure SetInsertMode(var output: Text);
+procedure SetReplacementMode(var output: Text);
+procedure SetEnterImmediate(var output: Text);
+procedure SetEnterDeferred(var output: Text);
+procedure SetEditImmediate(var output: Text);
+procedure SetEditDeferred(var output: Text);
 
 { Edit Functions }
-procedure DeleteChar;
-procedure DeleteChars(count: TInt);
-procedure DeleteLine;
-procedure DeleteLines(count: TInt);
-procedure InsertLine;
-procedure InsertLines(count: TInt);
+procedure DeleteChar(var output: Text);
+procedure DeleteChars(var output: Text; count: TInt);
+procedure DeleteLine(var output: Text);
+procedure DeleteLines(var output: Text; count: TInt);
+procedure InsertLine(var output: Text);
+procedure InsertLines(var output: Text; count: TInt);
 
 { Color Functions }
-procedure SetForegroundColor(color: TInt);
-procedure SetBackgroundColor(color: TInt);
-procedure SetColor(foreground, background: TInt);
+procedure SetForegroundColor(var output: Text; color: TInt);
+procedure SetBackgroundColor(var output: Text; color: TInt);
+procedure SetColor(var output: Text; foreground, background: TInt);
 
 implementation
 
@@ -92,109 +92,109 @@ uses
 
 { Cursor Movement Functions }
 
-procedure CursorUp(lines: TInt);
+procedure CursorUp(var output: Text; lines: TInt);
 begin
   if lines > 0 then
-    Write(ESC, '[', lines, 'A');
+    Write(output, ESC, '[', lines, 'A');
 end;
 
-procedure CursorDown(lines: TInt);
+procedure CursorDown(var output: Text; lines: TInt);
 begin
   if lines > 0 then
-    Write(ESC, '[', lines, 'B');
+    Write(output, ESC, '[', lines, 'B');
 end;
 
-procedure CursorForward(chars: TInt);
+procedure CursorForward(var output: Text; chars: TInt);
 begin
   if chars > 0 then
-    Write(ESC, '[', chars, 'C');
+    Write(output, ESC, '[', chars, 'C');
 end;
 
-procedure CursorBackward(chars: TInt);
+procedure CursorBackward(var output: Text; chars: TInt);
 begin
   if chars > 0 then
-    Write(ESC, '[', chars, 'D');
+    Write(output, ESC, '[', chars, 'D');
 end;
 
-procedure CursorPosition(line, column: TInt);
+procedure CursorPosition(var output: Text; line, column: TInt);
 begin
-  Write(ESC, '[', line, ';', column, 'H');
+  Write(output, ESC, '[', line, ';', column, 'H');
 end;
 
-procedure CursorHome;
+procedure CursorHome(var output: Text);
 begin
-  Write(ESC, '[H');
+  Write(output, ESC, '[H');
 end;
 
 { Cursor Save/Restore }
 
-procedure SaveCursor;
+procedure SaveCursor(var output: Text);
 begin
-  Write(ESC, '7');
+  Write(output, ESC, '7');
 end;
 
-procedure RestoreCursor;
+procedure RestoreCursor(var output: Text);
 begin
-  Write(ESC, '8');
+  Write(output, ESC, '8');
 end;
 
 { Screen Clearing Functions }
 
-procedure ClearScreen;
+procedure ClearScreen(var output: Text);
 begin
-  Write(ESC, '[2J');
+  Write(output, ESC, '[2J');
 end;
 
-procedure ClearToEndOfScreen;
+procedure ClearToEndOfScreen(var output: Text);
 begin
-  Write(ESC, '[J');
+  Write(output, ESC, '[J');
 end;
 
-procedure ClearToEndOfLine;
+procedure ClearToEndOfLine(var output: Text);
 begin
-  Write(ESC, '[K');
+  Write(output, ESC, '[K');
 end;
 
-procedure ClearFromBeginningOfLine;
+procedure ClearFromBeginningOfLine(var output: Text);
 begin
-  Write(ESC, '[1K');
+  Write(output, ESC, '[1K');
 end;
 
-procedure ClearLine;
+procedure ClearLine(var output: Text);
 begin
-  Write(ESC, '[2K');
+  Write(output, ESC, '[2K');
 end;
 
 { Text Attribute Functions }
 
-procedure ResetAttributes;
+procedure ResetAttributes(var output: Text);
 begin
-  Write(ESC, '[0m');
+  Write(output, ESC, '[0m');
 end;
 
-procedure SetBold;
+procedure SetBold(var output: Text);
 begin
-  Write(ESC, '[1m');
+  Write(output, ESC, '[1m');
 end;
 
-procedure SetUnderscore;
+procedure SetUnderscore(var output: Text);
 begin
-  Write(ESC, '[4m');
+  Write(output, ESC, '[4m');
 end;
 
-procedure SetBlink;
+procedure SetBlink(var output: Text);
 begin
-  Write(ESC, '[5m');
+  Write(output, ESC, '[5m');
 end;
 
-procedure SetReverseVideo;
+procedure SetReverseVideo(var output: Text);
 begin
-  Write(ESC, '[7m');
+  Write(output, ESC, '[7m');
 end;
 
 { Combined Attribute Function }
 
-procedure SetAttributes(bold, underscore, blink, reverse: Boolean);
+procedure SetAttributes(var output: Text; bold, underscore, blink, reverse: Boolean);
 var
   codes: string;
   needSeparator: Boolean;
@@ -232,153 +232,153 @@ begin
   end;
 
   if codes <> '' then
-    Write(ESC, '[', codes, 'm')
+    Write(output, ESC, '[', codes, 'm')
   else
-    ResetAttributes;
+    ResetAttributes(output);
 end;
 
 { Line Display Mode Functions }
 
-procedure SetDoubleHeightTop;
+procedure SetDoubleHeightTop(var output: Text);
 begin
-  Write(ESC, '#3');
+  Write(output, ESC, '#3');
 end;
 
-procedure SetDoubleHeightBottom;
+procedure SetDoubleHeightBottom(var output: Text);
 begin
-  Write(ESC, '#4');
+  Write(output, ESC, '#4');
 end;
 
-procedure SetSingleWidthHeight;
+procedure SetSingleWidthHeight(var output: Text);
 begin
-  Write(ESC, '#5');
+  Write(output, ESC, '#5');
 end;
 
-procedure SetDoubleWidthHeight;
+procedure SetDoubleWidthHeight(var output: Text);
 begin
-  Write(ESC, '#6');
+  Write(output, ESC, '#6');
 end;
 
 { Index Functions }
 
-procedure Index;
+procedure Index(var output: Text);
 begin
-  Write(ESC, 'D');
+  Write(output, ESC, 'D');
 end;
 
-procedure ReverseIndex;
+procedure ReverseIndex(var output: Text);
 begin
-  Write(ESC, 'M');
+  Write(output, ESC, 'M');
 end;
 
 { Cursor Visibility }
 
-procedure ShowCursor;
+procedure ShowCursor(var output: Text);
 begin
-  Write(ESC, '[?25h');
+  Write(output, ESC, '[?25h');
 end;
 
-procedure HideCursor;
+procedure HideCursor(var output: Text);
 begin
-  Write(ESC, '[?25l');
+  Write(output, ESC, '[?25l');
 end;
 
 { Cursor Positioning (Additional) }
 
-procedure CarriageReturnLineFeed;
+procedure CarriageReturnLineFeed(var output: Text);
 begin
-  Write(ESC, 'E');
+  Write(output, ESC, 'E');
 end;
 
 { Edit Mode Functions }
 
-procedure SetInsertMode;
+procedure SetInsertMode(var output: Text);
 begin
-  Write(ESC, '[4h');
+  Write(output, ESC, '[4h');
 end;
 
-procedure SetReplacementMode;
+procedure SetReplacementMode(var output: Text);
 begin
-  Write(ESC, '[4l');
+  Write(output, ESC, '[4l');
 end;
 
-procedure SetEnterImmediate;
+procedure SetEnterImmediate(var output: Text);
 begin
-  Write(ESC, '[?14h');
+  Write(output, ESC, '[?14h');
 end;
 
-procedure SetEnterDeferred;
+procedure SetEnterDeferred(var output: Text);
 begin
-  Write(ESC, '[?14l');
+  Write(output, ESC, '[?14l');
 end;
 
-procedure SetEditImmediate;
+procedure SetEditImmediate(var output: Text);
 begin
-  Write(ESC, '[?16h');
+  Write(output, ESC, '[?16h');
 end;
 
-procedure SetEditDeferred;
+procedure SetEditDeferred(var output: Text);
 begin
-  Write(ESC, '[?16l');
+  Write(output, ESC, '[?16l');
 end;
 
 { Edit Functions }
 
-procedure DeleteChar;
+procedure DeleteChar(var output: Text);
 begin
-  Write(ESC, '[P');
+  Write(output, ESC, '[P');
 end;
 
-procedure DeleteChars(count: TInt);
+procedure DeleteChars(var output: Text; count: TInt);
 begin
   if count > 0 then
-    Write(ESC, '[', count, 'P');
+    Write(output, ESC, '[', count, 'P');
 end;
 
-procedure DeleteLine;
+procedure DeleteLine(var output: Text);
 begin
-  Write(ESC, '[M');
+  Write(output, ESC, '[M');
 end;
 
-procedure DeleteLines(count: TInt);
-begin
-  if count > 0 then
-    Write(ESC, '[', count, 'M');
-end;
-
-procedure InsertLine;
-begin
-  Write(ESC, '[L');
-end;
-
-procedure InsertLines(count: TInt);
+procedure DeleteLines(var output: Text; count: TInt);
 begin
   if count > 0 then
-    Write(ESC, '[', count, 'L');
+    Write(output, ESC, '[', count, 'M');
+end;
+
+procedure InsertLine(var output: Text);
+begin
+  Write(output, ESC, '[L');
+end;
+
+procedure InsertLines(var output: Text; count: TInt);
+begin
+  if count > 0 then
+    Write(output, ESC, '[', count, 'L');
 end;
 
 { Color Functions }
 
-procedure SetForegroundColor(color: TInt);
+procedure SetForegroundColor(var output: Text; color: TInt);
 begin
   if (color >= 0) and (color <= 7) then
-    Write(ESC, '[', 30 + color, 'm')
+    Write(output, ESC, '[', 30 + color, 'm')
   else if (color >= 8) and (color <= 15) then
-    Write(ESC, '[', 90 + (color - 8), 'm');
+    Write(output, ESC, '[', 90 + (color - 8), 'm');
 end;
 
-procedure SetBackgroundColor(color: TInt);
+procedure SetBackgroundColor(var output: Text; color: TInt);
 begin
   if (color >= 0) and (color <= 7) then
-    Write(ESC, '[', 40 + color, 'm')
+    Write(output, ESC, '[', 40 + color, 'm')
   else if (color >= 8) and (color <= 15) then
-    Write(ESC, '[', 100 + (color - 8), 'm');
+    Write(output, ESC, '[', 100 + (color - 8), 'm');
 end;
 
-procedure SetColor(foreground, background: TInt);
+procedure SetColor(var output: Text; foreground, background: TInt);
 begin
-  SetForegroundColor(foreground);
-  SetBackgroundColor(background);
+  SetForegroundColor(output, foreground);
+  SetBackgroundColor(output, background);
 end;
 
 end.

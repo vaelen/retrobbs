@@ -2,95 +2,97 @@
 
 The `ANSI` unit provides a display library for outputing text to an ANSI terminal. This includes support for text decoration such as bold, italic, underline, and colors. It also includes support for moving the cursor around the screen and clearing all of or part of the screen as needed.
 
+All functions accept a `var output: Text` parameter as their first parameter, allowing ANSI codes to be written to the console (using the predefined `Output` stream), files, serial ports, or network sockets. This design follows standard Pascal I/O conventions.
+
 ## Function Reference
 
 ### Cursor Movement
 
-| Done | Function                              | Description                           |
-|------|---------------------------------------|---------------------------------------|
-| [x]  | CursorUp(lines: TInt)              | Move cursor up specified lines        |
-| [x]  | CursorDown(lines: TInt)            | Move cursor down specified lines      |
-| [x]  | CursorForward(chars: TInt)         | Move cursor forward specified chars   |
-| [x]  | CursorBackward(chars: TInt)        | Move cursor backward specified chars  |
-| [x]  | CursorPosition(line, column: TInt) | Move cursor to absolute position      |
-| [x]  | CursorHome                            | Move cursor to home position (1,1)    |
-| [x]  | SaveCursor                            | Save cursor position and attributes   |
-| [x]  | RestoreCursor                         | Restore cursor position and attributes|
+| Done | Function                                            | Description                           |
+|------|-----------------------------------------------------|---------------------------------------|
+| [x]  | CursorUp(var output: Text; lines: TInt)             | Move cursor up specified lines        |
+| [x]  | CursorDown(var output: Text; lines: TInt)           | Move cursor down specified lines      |
+| [x]  | CursorForward(var output: Text; chars: TInt)        | Move cursor forward specified chars   |
+| [x]  | CursorBackward(var output: Text; chars: TInt)       | Move cursor backward specified chars  |
+| [x]  | CursorPosition(var output: Text; line, column: TInt)| Move cursor to absolute position      |
+| [x]  | CursorHome(var output: Text)                        | Move cursor to home position (1,1)    |
+| [x]  | SaveCursor(var output: Text)                        | Save cursor position and attributes   |
+| [x]  | RestoreCursor(var output: Text)                     | Restore cursor position and attributes|
 
 ### Screen Clearing
 
-| Done | Function                   | Description                                |
-|------|----------------------------|--------------------------------------------|
-| [x]  | ClearScreen                | Clear entire screen                        |
-| [x]  | ClearToEndOfScreen         | Clear from cursor to end of screen         |
-| [x]  | ClearToEndOfLine           | Clear from cursor to end of line           |
-| [x]  | ClearFromBeginningOfLine   | Clear from beginning of line to cursor     |
-| [x]  | ClearLine                  | Clear entire line                          |
+| Done | Function                                    | Description                                |
+|------|---------------------------------------------|--------------------------------------------|
+| [x]  | ClearScreen(var output: Text)               | Clear entire screen                        |
+| [x]  | ClearToEndOfScreen(var output: Text)        | Clear from cursor to end of screen         |
+| [x]  | ClearToEndOfLine(var output: Text)          | Clear from cursor to end of line           |
+| [x]  | ClearFromBeginningOfLine(var output: Text)  | Clear from beginning of line to cursor     |
+| [x]  | ClearLine(var output: Text)                 | Clear entire line                          |
 
 ### Text Attributes
 
-| Done | Function                                                    | Description                        |
-|------|-------------------------------------------------------------|------------------------------------|
-| [x]  | ResetAttributes                                             | Reset all text attributes          |
-| [x]  | SetBold                                                     | Enable bold text                   |
-| [x]  | SetUnderscore                                               | Enable underscored text            |
-| [x]  | SetBlink                                                    | Enable blinking text               |
-| [x]  | SetReverseVideo                                             | Enable reverse video               |
-| [x]  | SetAttributes(bold, underscore, blink, reverse: Boolean)    | Set multiple attributes at once    |
+| Done | Function                                                                       | Description                        |
+|------|--------------------------------------------------------------------------------|------------------------------------|
+| [x]  | ResetAttributes(var output: Text)                                              | Reset all text attributes          |
+| [x]  | SetBold(var output: Text)                                                      | Enable bold text                   |
+| [x]  | SetUnderscore(var output: Text)                                                | Enable underscored text            |
+| [x]  | SetBlink(var output: Text)                                                     | Enable blinking text               |
+| [x]  | SetReverseVideo(var output: Text)                                              | Enable reverse video               |
+| [x]  | SetAttributes(var output: Text; bold, underscore, blink, reverse: Boolean)     | Set multiple attributes at once    |
 
 ### Line Display Modes
 
-| Done | Function              | Description                              |
-|------|-----------------------|------------------------------------------|
-| [x]  | SetDoubleHeightTop    | Change line to double-height top half    |
-| [x]  | SetDoubleHeightBottom | Change line to double-height bottom half |
-| [x]  | SetSingleWidthHeight  | Change line to single-width/height       |
-| [x]  | SetDoubleWidthHeight  | Change line to double-width/height       |
+| Done | Function                                | Description                              |
+|------|-----------------------------------------|------------------------------------------|
+| [x]  | SetDoubleHeightTop(var output: Text)    | Change line to double-height top half    |
+| [x]  | SetDoubleHeightBottom(var output: Text) | Change line to double-height bottom half |
+| [x]  | SetSingleWidthHeight(var output: Text)  | Change line to single-width/height       |
+| [x]  | SetDoubleWidthHeight(var output: Text)  | Change line to double-width/height       |
 
 ### Index Operations
 
-| Done | Function                 | Description                  |
-|------|--------------------------|------------------------------|
-| [x]  | Index                    | Line feed                    |
-| [x]  | ReverseIndex             | Reverse line feed            |
-| [x]  | CarriageReturnLineFeed   | Carriage return + line feed  |
+| Done | Function                               | Description                  |
+|------|----------------------------------------|------------------------------|
+| [x]  | Index(var output: Text)                | Line feed                    |
+| [x]  | ReverseIndex(var output: Text)         | Reverse line feed            |
+| [x]  | CarriageReturnLineFeed(var output: Text)| Carriage return + line feed  |
 
 ### Cursor Visibility
 
-| Done | Function       | Description        |
-|------|----------------|--------------------|
-| [x]  | ShowCursor     | Show cursor        |
-| [x]  | HideCursor     | Hide cursor        |
+| Done | Function                    | Description        |
+|------|-----------------------------|--------------------|
+| [x]  | ShowCursor(var output: Text)| Show cursor        |
+| [x]  | HideCursor(var output: Text)| Hide cursor        |
 
 ### Edit Mode
 
-| Done | Function              | Description                          |
-|------|-----------------------|--------------------------------------|
-| [x]  | SetInsertMode         | Set insert mode                      |
-| [x]  | SetReplacementMode    | Set replacement mode                 |
-| [x]  | SetEnterImmediate     | Immediate operation of ENTER key     |
-| [x]  | SetEnterDeferred      | Deferred operation of ENTER key      |
-| [x]  | SetEditImmediate      | Edit selection immediate             |
-| [x]  | SetEditDeferred       | Edit selection deferred              |
+| Done | Function                           | Description                          |
+|------|------------------------------------|--------------------------------------|
+| [x]  | SetInsertMode(var output: Text)    | Set insert mode                      |
+| [x]  | SetReplacementMode(var output: Text)| Set replacement mode                 |
+| [x]  | SetEnterImmediate(var output: Text)| Immediate operation of ENTER key     |
+| [x]  | SetEnterDeferred(var output: Text) | Deferred operation of ENTER key      |
+| [x]  | SetEditImmediate(var output: Text) | Edit selection immediate             |
+| [x]  | SetEditDeferred(var output: Text)  | Edit selection deferred              |
 
 ### Edit Operations
 
-| Done | Function                   | Description                          |
-|------|----------------------------|--------------------------------------|
-| [x]  | DeleteChar                 | Delete character at cursor           |
-| [x]  | DeleteChars(count: TInt)| Delete count chars from cursor       |
-| [x]  | DeleteLine                 | Delete line at cursor                |
-| [x]  | DeleteLines(count: TInt)| Delete count lines from cursor       |
-| [x]  | InsertLine                 | Insert line at cursor                |
-| [x]  | InsertLines(count: TInt)| Insert count lines at cursor         |
+| Done | Function                                  | Description                          |
+|------|-------------------------------------------|--------------------------------------|
+| [x]  | DeleteChar(var output: Text)              | Delete character at cursor           |
+| [x]  | DeleteChars(var output: Text; count: TInt)| Delete count chars from cursor       |
+| [x]  | DeleteLine(var output: Text)              | Delete line at cursor                |
+| [x]  | DeleteLines(var output: Text; count: TInt)| Delete count lines from cursor       |
+| [x]  | InsertLine(var output: Text)              | Insert line at cursor                |
+| [x]  | InsertLines(var output: Text; count: TInt)| Insert count lines at cursor         |
 
 ### Colors
 
-| Done | Function                                    | Description                        |
-|------|---------------------------------------------|------------------------------------|
-| [x]  | SetForegroundColor(color: TInt)          | Set foreground color (0-15)        |
-| [x]  | SetBackgroundColor(color: TInt)          | Set background color (0-15)        |
-| [x]  | SetColor(foreground, background: TInt)   | Set both foreground and background |
+| Done | Function                                                    | Description                        |
+|------|-------------------------------------------------------------|------------------------------------|
+| [x]  | SetForegroundColor(var output: Text; color: TInt)           | Set foreground color (0-15)        |
+| [x]  | SetBackgroundColor(var output: Text; color: TInt)           | Set background color (0-15)        |
+| [x]  | SetColor(var output: Text; foreground, background: TInt)    | Set both foreground and background |
 
 **Standard Colors (0-7):**
 - 0: Black
