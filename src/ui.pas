@@ -70,7 +70,13 @@ procedure ClearBox(var screen: TScreen; box: TBox; color: TColor);
 procedure DrawBox(var screen: TScreen; box: TBox; borderType: TBorderType; color: TColor);
 
 { WriteText writes text into a box }
-procedure WriteText(var screen: TScreen; box: TBox; color: TColor; alignment: TAlignment; text: Str255);
+procedure WriteText(var screen: TScreen; box: TBox; color: TColor; alignment: TAlignment; offsetR, offsetC: TInt; text: Str255);
+
+{ WriteHeader writes text on the box's first row }
+procedure WriteHeader(var screen: TScreen; box: TBox; color: TColor; alignment: TAlignment; offsetR, offsetC: TInt; text: Str255);
+
+{ WriteFooter writes text on the box's last row }
+procedure WriteFooter(var screen: TScreen; box: TBox; color: TColor; alignment: TAlignment; offsetR, offsetC: TInt; text: Str255);
 
 implementation
 
@@ -215,12 +221,17 @@ begin
 end;
 
 { WriteText implementation }
-procedure WriteText(var screen: TScreen; box: TBox; color: TColor; alignment: TAlignment; text: Str255);
+procedure WriteText(var screen: TScreen; box: TBox; color: TColor; alignment: TAlignment; offsetR, offsetC: TInt; text: Str255);
 var
   row, column, height, width: TInt;
   output: PText;
   textLength: TInt;
   startColumn: TInt;
+  currentRow: TInt;
+  textPos: TInt;
+  lineLength: TInt;
+  remaining: TInt;
+  lineText: Str255;
 begin
   row := box.Row;
   column := box.Column;
@@ -229,29 +240,64 @@ begin
   output := screen.Output;
   textLength := Length(text);
 
-  { Truncate text if it's too long }
-  if textLength > width then
-    textLength := width;
-
-  { Calculate starting column based on alignment }
-  case alignment of
-    aLeft: startColumn := column;
-    aCenter: startColumn := column + ((width - textLength) div 2);
-    aRight: startColumn := column + (width - textLength);
-  end;
-
-  { Move cursor to position }
-  CursorPosition(output^, row, startColumn);
-
   { Set color }
   if screen.IsColor then
     SetColor(output^, color.FG, color.BG);
 
-  { Write text (truncated if necessary) }
-  if textLength = Length(text) then
-    Write(output^, text)
-  else
-    Write(output^, Copy(text, 1, textLength));
+  { Initialize for wrapping }
+  currentRow := row + offsetR;
+  textPos := 1;
+  remaining := textLength;
+
+  { Write text with wrapping }
+  while (remaining > 0) and (currentRow < row + height) do
+  begin
+    { Calculate how much text fits on this line }
+    lineLength := Min(remaining, width);
+    lineText := Copy(text, textPos, lineLength);
+
+    { Calculate starting column based on alignment }
+    case alignment of
+      aLeft: startColumn := column + offsetC;
+      aCenter: startColumn := column + ((width - lineLength) div 2) + offsetC;
+      aRight: startColumn := column + (width - lineLength) + offsetC;
+    end;
+
+    { Move cursor to position }
+    CursorPosition(output^, currentRow, startColumn);
+
+    { Write this line of text }
+    Write(output^, lineText);
+
+    { Move to next line }
+    textPos := textPos + lineLength;
+    remaining := remaining - lineLength;
+    currentRow := currentRow + 1;
+  end;
+end;
+
+{ WriteHeader implementation }
+procedure WriteHeader(var screen: TScreen; box: TBox; color: TColor; alignment: TAlignment; offsetR, offsetC: TInt; text: Str255);
+var
+  headerBox: TBox;
+begin
+  headerBox.Row := box.Row;
+  headerBox.Column := box.Column;
+  headerBox.Height := 1;
+  headerBox.Width := box.Width;
+  WriteText(screen, headerBox, color, alignment, offsetR, offsetC, text);
+end;
+
+{ WriteFooter implementation }
+procedure WriteFooter(var screen: TScreen; box: TBox; color: TColor; alignment: TAlignment; offsetR, offsetC: TInt; text: Str255);
+var
+  footerBox: TBox;
+begin
+  footerBox.Row := box.Row + box.Height - 1;
+  footerBox.Column := box.Column;
+  footerBox.Height := 1;
+  footerBox.Width := box.Width;
+  WriteText(screen, footerBox, color, alignment, offsetR, offsetC, text);
 end;
 
 end.

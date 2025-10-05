@@ -54,11 +54,13 @@ The `TBox` type keeps track of the size and location of a square box.
 
 ## Core Drawing Procedures
 
-| Name                                                 | Description                           |
-| -----------------------------------------------------| ------------------------------------- |
-| ClearBox(TScreen, TBox, TColor)                      | Clear the screen within the given box |
-| DrawBox(TScreen, TBox, TBorderType, TColor)          | Draw a border around the given box    |
-| WriteText(TScreen, TBox, TColor, TAlignment, Str255) | Writes text into a box                |
+| Name                                                                           | Description                           |
+| ------------------------------------------------------------------------------ | ------------------------------------- |
+| ClearBox(TScreen, TBox, TColor)                                                | Clear the screen within the given box |
+| DrawBox(TScreen, TBox, TBorderType, TColor)                                    | Draw a border around the given box    |
+| WriteText(TScreen, TBox, TColor, TAlignment, OffsetR, OffsetC: TInt, Str255)   | Writes text into a box                |
+| WriteHeader(TScreen, TBox, TColor, TAlignment, OffsetR, OffsetC: TInt, Str255) | Writes text on the box's first row    |
+| WriteFooter(TScreen, TBox, TColor, TAlignment, OffsetR, OffsetC: TInt, Str255) | Writes text on the box's last row     |
 
 ### ClearBox
 
@@ -205,19 +207,64 @@ Algorithm:
 ```pascal
 Row := Box.Row;
 Column := Box.Column;
-Height := Min(Box.Height, Screen.Height - Row);
-Width := Min(Box.Width, Screen.Width - Column);
+Height := Min(Box.Height, Screen.Height - Row + 1);
+Width := Min(Box.Width, Screen.Width - Column + 1);
 Output := Screen.Output;
-TextLength := Length()
-Offset := 0
-Remaining := TextLength
+TextLength := Length(Text);
 
-Case Alignment of
-    aLeft: MoveTo(Row, Column)
-    aCenter: MoveTo(Row, Column + (TextLength / 2))
-    aRight: MoveTo(Row, Colum + (Width - TextLength))
+{ Set color }
+SetColor(Output, Color.FG, Color.BG);
 
-SetColor(Output, Color);
-Write(Output, c)
+{ Initialize for wrapping }
+CurrentRow := Row + OffsetR;
+TextPos := 1;
+Remaining := TextLength;
 
+{ Write text with wrapping }
+While (Remaining > 0) And (CurrentRow < Row + Height) Do
+Begin
+    { Calculate how much text fits on this line }
+    LineLength := Min(Remaining, Width);
+    LineText := Copy(Text, TextPos, LineLength);
+
+    { Calculate starting column based on alignment }
+    Case Alignment of
+        aLeft: StartColumn := Column + OffsetC;
+        aCenter: StartColumn := Column + ((Width - LineLength) div 2) + OffsetC;
+        aRight: StartColumn := Column + (Width - LineLength) + OffsetC;
+    End;
+
+    { Move cursor and write this line of text }
+    CursorPosition(Output, CurrentRow, StartColumn);
+    Write(Output, LineText);
+
+    { Move to next line }
+    TextPos := TextPos + LineLength;
+    Remaining := Remaining - LineLength;
+    CurrentRow := CurrentRow + 1;
+End;
+```
+
+## WriteHeader
+
+Algorithm:
+```pascal
+var HeaderBox: Box;
+HeaderBox.Row := Box.Row;
+HeaderBox.Column := Box.Column;
+HeaderBox.Height := 1;
+Headerbox.Width := Box.Width;
+WriteText(Screen, HeaderBox, Color, Alignment, OffsetR, OffsetC, Text)
+```
+
+## WriteFooter
+
+Algorithm:
+```pascal
+var FooterBox: Box;
+FooterBox.Row := Box.Row + Box.Height - 1;
+FooterBox.Column := Box.Column;
+FooterBox.Height := 1;
+FooterBox.Width := Box.Width;
+WriteText(Screen, FooterBox, Color, Alignment, OffsetR, OffsetC, Text)
 ```

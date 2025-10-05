@@ -7,6 +7,9 @@ program UITest;
   - ClearBox
   - DrawBox
   - WriteText
+  - WriteHeader
+  - WriteFooter
+  - Text wrapping
 }
 
 uses
@@ -56,17 +59,17 @@ begin
   box.Height := 1;
   color.FG := 14;  { Yellow }
   color.BG := 4;   { Blue }
-  WriteText(screen, box, color, aLeft, 'Left aligned text');
+  WriteText(screen, box, color, aLeft, 0, 0, 'Left aligned text');
 
   { Center aligned }
   box.Row := 7;
   color.FG := 10;  { Bright Green }
-  WriteText(screen, box, color, aCenter, 'Center aligned text');
+  WriteText(screen, box, color, aCenter, 0, 0, 'Center aligned text');
 
   { Right aligned }
   box.Row := 9;
   color.FG := 11;  { Bright Yellow }
-  WriteText(screen, box, color, aRight, 'Right aligned text');
+  WriteText(screen, box, color, aRight, 0, 0, 'Right aligned text');
 
   { Test 3: Draw a box with ASCII characters }
   WriteLn;
@@ -86,7 +89,61 @@ begin
   box.Column := 6;
   box.Width := 38;
   color.FG := 14;  { Yellow }
-  WriteText(screen, box, color, aCenter, 'ASCII box characters');
+  WriteText(screen, box, color, aCenter, 0, 0, 'ASCII box characters');
+
+  { Test 4: WriteHeader and WriteFooter }
+  WriteLn;
+  WriteLn('Test 4: WriteHeader and WriteFooter');
+  screen.ScreenType := stANSI;
+  box.Row := 3;
+  box.Column := 50;
+  box.Height := 10;
+  box.Width := 28;
+  color.FG := 15;  { White }
+  color.BG := 2;   { Green }
+
+  ClearBox(screen, box, color);
+  DrawBox(screen, box, btSingle, color);
+
+  { Write header }
+  color.FG := 14;  { Yellow }
+  WriteHeader(screen, box, color, aCenter, 0, 0, ' Test Box ');
+
+  { Write footer }
+  color.FG := 11;  { Bright Cyan }
+  WriteFooter(screen, box, color, aCenter, 0, 0, ' Footer ');
+
+  { Write some content in the middle }
+  box.Row := 7;
+  box.Column := 51;
+  box.Width := 26;
+  color.FG := 10;  { Bright Green }
+  WriteText(screen, box, color, aCenter, 0, 0, 'Content text');
+
+  { Test 5: Text wrapping }
+  WriteLn;
+  WriteLn('Test 5: Text wrapping with long text');
+  box.Row := 14;
+  box.Column := 50;
+  box.Height := 6;
+  box.Width := 28;
+  color.FG := 15;  { White }
+  color.BG := 5;   { Magenta }
+
+  ClearBox(screen, box, color);
+  DrawBox(screen, box, btSingle, color);
+
+  { Write header }
+  color.FG := 14;  { Yellow }
+  WriteHeader(screen, box, color, aCenter, 0, 0, ' Wrapping ');
+
+  { Write long text that will wrap }
+  box.Row := 15;
+  box.Column := 51;
+  box.Height := 4;
+  box.Width := 26;
+  color.FG := 11;  { Bright Cyan }
+  WriteText(screen, box, color, aLeft, 0, 0, 'This is a long text that will wrap across multiple lines in the box!');
 
   { Position cursor below boxes }
   CursorPosition(Output, 21, 1);
