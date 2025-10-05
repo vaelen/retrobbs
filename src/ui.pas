@@ -232,6 +232,8 @@ var
   lineLength: TInt;
   remaining: TInt;
   lineText: Str255;
+  i: TInt;
+  lastSpace: TInt;
 begin
   row := box.Row;
   column := box.Column;
@@ -254,6 +256,26 @@ begin
   begin
     { Calculate how much text fits on this line }
     lineLength := Min(remaining, width);
+
+    { Try to break at whitespace if not the last line }
+    if (lineLength < remaining) and (lineLength > 0) then
+    begin
+      { Look for the last space in this segment }
+      lastSpace := 0;
+      for i := lineLength downto 1 do
+      begin
+        if text[textPos + i - 1] = ' ' then
+        begin
+          lastSpace := i;
+          break;
+        end;
+      end;
+
+      { If we found a space, break there }
+      if lastSpace > 0 then
+        lineLength := lastSpace;
+    end;
+
     lineText := Copy(text, textPos, lineLength);
 
     { Calculate starting column based on alignment }

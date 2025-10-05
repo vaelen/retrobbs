@@ -10,6 +10,7 @@ program UITest;
   - WriteHeader
   - WriteFooter
   - Text wrapping
+  - OffsetR and OffsetC parameters
 }
 
 uses
@@ -145,8 +146,69 @@ begin
   color.FG := 11;  { Bright Cyan }
   WriteText(screen, box, color, aLeft, 0, 0, 'This is a long text that will wrap across multiple lines in the box!');
 
-  { Position cursor below boxes }
-  CursorPosition(Output, 21, 1);
+  { Test edge case: long word with no spaces }
+  box.Row := 16;
+  box.Column := 51;
+  box.Height := 1;
+  box.Width := 26;
+  color.FG := 14;  { Yellow }
+  WriteText(screen, box, color, aLeft, 0, 0, 'Supercalifragilisticexpialidocious');
+
+  { Clear screen for next tests }
+  ClearScreen(Output);
+  CursorPosition(Output, 1, 1);
+
+  { Test 6: OffsetR and OffsetC }
+  WriteLn('Test 6: Testing OffsetR and OffsetC parameters');
+  WriteLn;
+
+  { Draw a box }
+  box.Row := 3;
+  box.Column := 5;
+  box.Height := 15;
+  box.Width := 70;
+  color.FG := 15;  { White }
+  color.BG := 4;   { Blue }
+
+  ClearBox(screen, box, color);
+  DrawBox(screen, box, btSingle, color);
+
+  { Write header }
+  color.FG := 14;  { Yellow }
+  WriteHeader(screen, box, color, aCenter, 0, 0, ' Offset Testing ');
+
+  { Test various offsets - create a grid of text }
+  color.FG := 11;  { Bright Cyan }
+
+  { Row 1: OffsetR=1, OffsetC variations }
+  WriteText(screen, box, color, aLeft, 1, 1, 'OffsetR=1, OffsetC=1');
+  WriteText(screen, box, color, aLeft, 1, 25, 'OffsetC=25');
+  WriteText(screen, box, color, aLeft, 1, 40, 'OffsetC=40');
+
+  { Row 3: OffsetR=3 }
+  color.FG := 10;  { Bright Green }
+  WriteText(screen, box, color, aLeft, 3, 1, 'OffsetR=3, OffsetC=1');
+
+  { Row 5: OffsetR=5 with center alignment }
+  color.FG := 13;  { Bright Magenta }
+  WriteText(screen, box, color, aCenter, 5, 0, 'OffsetR=5, Centered, OffsetC=0');
+  WriteText(screen, box, color, aCenter, 5, 10, 'Same row, OffsetC=10');
+
+  { Row 7: OffsetR=7 with right alignment }
+  color.FG := 12;  { Bright Red }
+  WriteText(screen, box, color, aRight, 7, 0, 'Right aligned, OffsetC=0');
+  WriteText(screen, box, color, aRight, 7, -10, 'Same row, OffsetC=-10');
+
+  { Row 9: Multiple lines showing offset doesn't affect wrapping }
+  color.FG := 14;  { Yellow }
+  box.Row := 3;
+  box.Column := 5;
+  box.Height := 15;
+  box.Width := 68;
+  WriteText(screen, box, color, aLeft, 9, 1, 'This text starts with OffsetR=9 and OffsetC=1 and will wrap to the next line.');
+
+  { Position cursor below box }
+  CursorPosition(Output, 19, 1);
   ResetAttributes(Output);
 
   WriteLn;

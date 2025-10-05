@@ -225,6 +225,26 @@ While (Remaining > 0) And (CurrentRow < Row + Height) Do
 Begin
     { Calculate how much text fits on this line }
     LineLength := Min(Remaining, Width);
+
+    { Try to break at whitespace if not the last line }
+    If (LineLength < Remaining) And (LineLength > 0) Then
+    Begin
+        { Look for the last space in this segment }
+        LastSpace := 0;
+        For i := LineLength DownTo 1 Do
+        Begin
+            If Text[TextPos + i - 1] = ' ' Then
+            Begin
+                LastSpace := i;
+                Break;
+            End;
+        End;
+
+        { If we found a space, break there }
+        If LastSpace > 0 Then
+            LineLength := LastSpace;
+    End;
+
     LineText := Copy(Text, TextPos, LineLength);
 
     { Calculate starting column based on alignment }
