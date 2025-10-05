@@ -18,27 +18,31 @@ The `TAlignment` enum lists possible text alignments.
 | aCenter | Centered      |
 | aRight  | Right Aligned |
 
-The `TCharSet` enum denotes the character set used for drawing characters.
-| Value   | Description                   |
-| ------- | ----------------------------- |
-| ASCII   | Only use 7bit ASCII           |
-| ANSI    | CP437 - IBM PC                |
-| VT100   | VT100 Alternate Character Set |
-| UTF8    | Unicode drawing characters    |
+The `TScreenType` enum denotes the character set used for drawing characters.
+| Value    | Description                   |
+| -------- | ----------------------------- |
+| stASCII  | Only use 7bit ASCII           |
+| stANSI   | CP437 - IBM PC                |
+| stVT100  | VT100 Alternate Character Set |
+| stUTF8   | Unicode drawing characters    |
 
-**Note: The ASCII and VT100 character sets only provide characters for drawing simple boxes. ANSI and Unicode provide double line boxes and shading. 
+**Note: The ASCII and VT100 character sets only provide characters for drawing simple boxes. ANSI and Unicode provide double line boxes and shading.**
 
-The `TBorderType` enum
+The `TBorderType` enum denotes the type of border to draw.
+| Value    | Description                            |
+| -------- | -------------------------------------- |
+| btSingle | Single line border                     |
+| btDouble | Double line border (ANSI/UTF8 only)    |
 
 The `TScreen` type keeps track of information related to the screen.
-| Field   | Type     | Notes                             |
-| ------- | ---------| --------------------------------- |
-| Output  | PText    | The output stream                 |
-| Height  | TInt     | Height in Characters              |
-| Width   | TInt     | Width in Characters               |
-| IsANSI  | Boolean  | Supports ANSI Control Characters  |
-| IsColor | Boolean  | Supports color                    |
-| CharSet | TCharSet | Character Set (for drawing boxes) |
+| Field      | Type        | Notes                             |
+| ---------- | ----------- | --------------------------------- |
+| Output     | PText       | The output stream                 |
+| Height     | TInt        | Height in Characters              |
+| Width      | TInt        | Width in Characters               |
+| IsANSI     | Boolean     | Supports ANSI Control Characters  |
+| IsColor    | Boolean     | Supports color                    |
+| ScreenType | TScreenType | Screen Type (for drawing boxes)   |
 
 The `TBox` type keeps track of the size and location of a square box.
 | Field  | Type |
@@ -86,13 +90,16 @@ Output := Screen.Output;
 MoveTo(Row, Column);
 SetColor(Color);
 
-If (Screen.CharSet = VT100) Then
-    Write(Output, StartDrawing)
+If (Screen.ScreenType = stVT100) Then
+Begin
+    SetSecondaryCharacterSet(Output, csDrawing)
+    Write(Output, StartDrawing);
+End;
 
-Write(Output, TopLeftCornerChar)
+Write(Output, TopLeftCornerChar);
 For i := 1 to (Width - 2) do
-    Write(Output, HorizontalLineChar)
-Write(Output, TopRightCorner)
+    Write(Output, HorizontalLineChar);
+Write(Output, TopRightCorner);
 
 For i : = 1 to (Height - 2) do
 Begin
@@ -102,13 +109,13 @@ Begin
     Write(Output, VerticalLineChar);
 End;
 
-Write(Screen.Output, BottomLeftCornerChar)
+Write(Screen.Output, BottomLeftCornerChar);
 For i := 1 to (FinalWidth - 2) do
-    Write(Output, HorizontalLineChar)
-Write(Output, BottomRightCorner)
+    Write(Output, HorizontalLineChar);
+Write(Output, BottomRightCorner);
 
-If (Screen.CharSet = VT100) Then
-    Write(Output, StopDrawing)
+If (Screen.ScreenType = stVT100) Then
+    Write(Output, StopDrawing);
 
 ```
 
@@ -160,9 +167,7 @@ VT100:
 | StartDrawing          | 0x0E |   |
 | StopDrawing           | 0x0F |   |
 
-**NOTE: To use the VT100 drawing characters, you must call SetAlternateCharacterSet(csDrawing) first.**
-
-**NOTE: Send SI (0x0E) before any drawing characters and SO (0x0F) afterwards.**
+**NOTE: To use the VT100 drawing characters, you must call SetSecondaryCharacterSet(output, csDrawing) first, then send SI (0x0E) before any drawing characters and SO (0x0F) afterwards.**
 
 UTF8:
 | Name                  | Codepoint | Char Sequence  | C |
