@@ -54,13 +54,13 @@ The `TBox` type keeps track of the size and location of a square box.
 
 ## Core Drawing Procedures
 
-| Name                                                                           | Description                           |
-| ------------------------------------------------------------------------------ | ------------------------------------- |
-| ClearBox(TScreen, TBox, TColor)                                                | Clear the screen within the given box |
-| DrawBox(TScreen, TBox, TBorderType, TColor)                                    | Draw a border around the given box    |
-| WriteText(TScreen, TBox, TColor, TAlignment, OffsetR, OffsetC: TInt, Str255)   | Writes text into a box                |
-| WriteHeader(TScreen, TBox, TColor, TAlignment, OffsetR, OffsetC: TInt, Str255) | Writes text on the box's first row    |
-| WriteFooter(TScreen, TBox, TColor, TAlignment, OffsetR, OffsetC: TInt, Str255) | Writes text on the box's last row     |
+| Name                                                                           | Description                                                          |
+| ------------------------------------------------------------------------------ | -------------------------------------------------------------------- |
+| ClearBox(TScreen, TBox, TColor)                                                | Clear the screen within the given box                                |
+| DrawBox(TScreen, TBox, TBorderType, TColor)                                    | Draw a border around the given box                                   |
+| WriteText(TScreen, TBox, TColor, TAlignment, OffsetR, OffsetC: TInt, Str255): TInt   | Writes text into a box, returns number of characters displayed       |
+| WriteHeader(TScreen, TBox, TColor, TAlignment, OffsetR, OffsetC: TInt, Str255): TInt | Writes text on the box's first row, returns number of characters displayed |
+| WriteFooter(TScreen, TBox, TColor, TAlignment, OffsetR, OffsetC: TInt, Str255): TInt | Writes text on the box's last row, returns number of characters displayed |
 
 ### ClearBox
 

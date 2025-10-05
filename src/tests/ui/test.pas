@@ -215,6 +215,60 @@ begin
   WriteLn('Test complete! Press Enter to continue...');
   ReadLn;
 
+  { Clear screen for final test }
+  ClearScreen(Output);
+  CursorPosition(Output, 1, 1);
+
+  { Test 7: Return values }
+  WriteLn('Test 7: Testing return values (characters displayed)');
+  WriteLn;
+
+  box.Row := 3;
+  box.Column := 5;
+  box.Height := 10;
+  box.Width := 50;
+  color.FG := 15;
+  color.BG := 4;
+
+  ClearBox(screen, box, color);
+  DrawBox(screen, box, btSingle, color);
+
+  color.FG := 14;
+  WriteLn('Header returned: ', WriteHeader(screen, box, color, aCenter, 0, 0, ' Return Value Test '));
+
+  color.FG := 11;
+  box.Row := 4;
+  box.Column := 6;
+  box.Width := 48;
+  box.Height := 6;
+  WriteLn('WriteText returned: ', WriteText(screen, box, color, aLeft, 0, 0, 'This text will wrap and we will see how many characters were displayed.'));
+
+  box.Row := 3;
+  color.FG := 13;
+  WriteLn('Footer returned: ', WriteFooter(screen, box, color, aCenter, 0, 0, ' End '));
+
+  { Test trailing space counting }
+  WriteLn;
+  WriteLn('Testing trailing space in word wrapping:');
+  box.Row := 10;
+  box.Column := 6;
+  box.Width := 15;
+  box.Height := 3;
+  color.FG := 10;
+  WriteLn('Text: "This is a test word"');
+  WriteLn('Text length: ', Length('This is a test word'));
+  WriteLn('Box width: 15');
+  WriteLn('Should wrap after "a " on line 1 (position 10)');
+  WriteLn('Returned: ', WriteText(screen, box, color, aLeft, 0, 0, 'This is a test word'));
+  WriteLn('Expected: 19 (all chars including space after "a")');
+
+  CursorPosition(Output, 20, 1);
+  ResetAttributes(Output);
+
+  WriteLn;
+  WriteLn('All tests complete! Press Enter to exit...');
+  ReadLn;
+
   { Clear screen and reset }
   ClearScreen(Output);
   CursorHome(Output);

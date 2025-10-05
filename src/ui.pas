@@ -69,14 +69,14 @@ procedure ClearBox(var screen: TScreen; box: TBox; color: TColor);
 { DrawBox draws a border around the given box }
 procedure DrawBox(var screen: TScreen; box: TBox; borderType: TBorderType; color: TColor);
 
-{ WriteText writes text into a box }
-procedure WriteText(var screen: TScreen; box: TBox; color: TColor; alignment: TAlignment; offsetR, offsetC: TInt; text: Str255);
+{ WriteText writes text into a box and returns the number of characters displayed }
+function WriteText(var screen: TScreen; box: TBox; color: TColor; alignment: TAlignment; offsetR, offsetC: TInt; text: Str255): TInt;
 
-{ WriteHeader writes text on the box's first row }
-procedure WriteHeader(var screen: TScreen; box: TBox; color: TColor; alignment: TAlignment; offsetR, offsetC: TInt; text: Str255);
+{ WriteHeader writes text on the box's first row and returns the number of characters displayed }
+function WriteHeader(var screen: TScreen; box: TBox; color: TColor; alignment: TAlignment; offsetR, offsetC: TInt; text: Str255): TInt;
 
-{ WriteFooter writes text on the box's last row }
-procedure WriteFooter(var screen: TScreen; box: TBox; color: TColor; alignment: TAlignment; offsetR, offsetC: TInt; text: Str255);
+{ WriteFooter writes text on the box's last row and returns the number of characters displayed }
+function WriteFooter(var screen: TScreen; box: TBox; color: TColor; alignment: TAlignment; offsetR, offsetC: TInt; text: Str255): TInt;
 
 implementation
 
@@ -221,7 +221,7 @@ begin
 end;
 
 { WriteText implementation }
-procedure WriteText(var screen: TScreen; box: TBox; color: TColor; alignment: TAlignment; offsetR, offsetC: TInt; text: Str255);
+function WriteText(var screen: TScreen; box: TBox; color: TColor; alignment: TAlignment; offsetR, offsetC: TInt; text: Str255): TInt;
 var
   row, column, height, width: TInt;
   output: PText;
@@ -234,6 +234,7 @@ var
   lineText: Str255;
   i: TInt;
   lastSpace: TInt;
+  charsDisplayed: TInt;
 begin
   row := box.Row;
   column := box.Column;
@@ -241,6 +242,7 @@ begin
   width := Min(box.Width, screen.Width - column + 1);
   output := screen.Output;
   textLength := Length(text);
+  charsDisplayed := 0;
 
   { Set color }
   if screen.IsColor then
@@ -290,16 +292,19 @@ begin
 
     { Write this line of text }
     Write(output^, lineText);
+    charsDisplayed := charsDisplayed + lineLength;
 
     { Move to next line }
     textPos := textPos + lineLength;
     remaining := remaining - lineLength;
     currentRow := currentRow + 1;
   end;
+
+  WriteText := charsDisplayed;
 end;
 
 { WriteHeader implementation }
-procedure WriteHeader(var screen: TScreen; box: TBox; color: TColor; alignment: TAlignment; offsetR, offsetC: TInt; text: Str255);
+function WriteHeader(var screen: TScreen; box: TBox; color: TColor; alignment: TAlignment; offsetR, offsetC: TInt; text: Str255): TInt;
 var
   headerBox: TBox;
 begin
@@ -307,11 +312,11 @@ begin
   headerBox.Column := box.Column;
   headerBox.Height := 1;
   headerBox.Width := box.Width;
-  WriteText(screen, headerBox, color, alignment, offsetR, offsetC, text);
+  WriteHeader := WriteText(screen, headerBox, color, alignment, offsetR, offsetC, text);
 end;
 
 { WriteFooter implementation }
-procedure WriteFooter(var screen: TScreen; box: TBox; color: TColor; alignment: TAlignment; offsetR, offsetC: TInt; text: Str255);
+function WriteFooter(var screen: TScreen; box: TBox; color: TColor; alignment: TAlignment; offsetR, offsetC: TInt; text: Str255): TInt;
 var
   footerBox: TBox;
 begin
@@ -319,7 +324,7 @@ begin
   footerBox.Column := box.Column;
   footerBox.Height := 1;
   footerBox.Width := box.Width;
-  WriteText(screen, footerBox, color, alignment, offsetR, offsetC, text);
+  WriteFooter := WriteText(screen, footerBox, color, alignment, offsetR, offsetC, text);
 end;
 
 end.
