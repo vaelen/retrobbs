@@ -48,13 +48,13 @@ The `TBox` type keeps track of the size and location of a square box.
 
 ## Core Drawing Procedures
 
-| Name                                                                           | Description                                                          |
-| ------------------------------------------------------------------------------ | -------------------------------------------------------------------- |
-| ClearBox(TScreen, TBox, TColor)                                                | Clear the screen within the given box                                |
-| DrawBox(TScreen, TBox, TBorderType, TColor)                                    | Draw a border around the given box                                   |
-| WriteText(TScreen, TBox, TColor, TAlignment, OffsetR, OffsetC: TInt, Str255): TInt   | Writes text into a box, returns number of characters displayed       |
+| Name                                                                                 | Description                                                                |
+| ------------------------------------------------------------------------------------ | -------------------------------------------------------------------------- |
+| ClearBox(TScreen, TBox, TColor)                                                      | Clear the screen within the given box                                      |
+| DrawBox(TScreen, TBox, TBorderType, TColor)                                          | Draw a border around the given box                                         |
+| WriteText(TScreen, TBox, TColor, TAlignment, OffsetR, OffsetC: TInt, Str255): TInt   | Writes text into a box, returns number of characters displayed             |
 | WriteHeader(TScreen, TBox, TColor, TAlignment, OffsetR, OffsetC: TInt, Str255): TInt | Writes text on the box's first row, returns number of characters displayed |
-| WriteFooter(TScreen, TBox, TColor, TAlignment, OffsetR, OffsetC: TInt, Str255): TInt | Writes text on the box's last row, returns number of characters displayed |
+| WriteFooter(TScreen, TBox, TColor, TAlignment, OffsetR, OffsetC: TInt, Str255): TInt | Writes text on the box's last row, returns number of characters displayed  |
 
 ### ClearBox
 
@@ -134,7 +134,7 @@ ASCII:
 ANSI:
 | Name                  | Char | C |
 | --------------------- | ---- | - |
-| TopLeftCornerChar     | 0xDA | ┼ |
+| TopLeftCornerChar     | 0xDA | ┌ |
 | TopRightCornerChar    | 0xBF | ┐ |
 | HorizontalChar        | 0xC4 | ─ |
 | VeticalChar           | 0xB3 | │ |
@@ -149,7 +149,7 @@ ANSI:
 VT100:
 | Name                  | Char | C |
 | --------------------- | ---- | - |
-| TopLeftCornerChar     | 0x2F | ┼ |
+| TopLeftCornerChar     | 0x2F | ┌ |
 | TopRightCornerChar    | 0x5C | ┐ |
 | HorizontalChar        | 0x2D | ─ |
 | VeticalChar           | 0x7C | │ |
@@ -168,7 +168,7 @@ VT100:
 UTF8:
 | Name                  | Codepoint | Char Sequence  | C |
 | --------------------- | --------- | -------------- | - |
-| TopLeftCornerChar     | U+250C    | 0xE2 0x94 0x8C | ┼ |
+| TopLeftCornerChar     | U+250C    | 0xE2 0x94 0x8C | ┌ |
 | TopRightCornerChar    | U+2510    | 0xE2 0x94 0x90 | ┐ |
 | HorizontalChar        | U+2500    | 0xE2 0x94 0x80 | ─ |
 | VeticalChar           | U+2502    | 0xE2 0x94 0x82 | │ |

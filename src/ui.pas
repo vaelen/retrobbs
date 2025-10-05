@@ -79,13 +79,15 @@ implementation
 
 { Box drawing character tables }
 type
+  TBoxChar = String[3];
+
   TBoxChars = record
-    TopLeft: Char;
-    TopRight: Char;
-    Horizontal: Char;
-    Vertical: Char;
-    BottomLeft: Char;
-    BottomRight: Char;
+    TopLeft: TBoxChar;
+    TopRight: TBoxChar;
+    Horizontal: TBoxChar;
+    Vertical: TBoxChar;
+    BottomLeft: TBoxChar;
+    BottomRight: TBoxChar;
   end;
 
 const
@@ -111,12 +113,22 @@ const
 
   { VT100 box drawing characters (used with alternate character set) }
   VT100BoxChars: TBoxChars = (
-    TopLeft: '/';
-    TopRight: '\';
-    Horizontal: '-';
-    Vertical: '|';
-    BottomLeft: '\';
-    BottomRight: '/'
+    TopLeft: 'l';
+    TopRight: 'k';
+    Horizontal: 'q';
+    Vertical: 'x';
+    BottomLeft: 'm';
+    BottomRight: 'j'
+  );
+
+  { UTF-8 box drawing characters (Unicode) }
+  UTF8BoxChars: TBoxChars = (
+    TopLeft: #$E2#$94#$8C;      { ┌ U+250C }
+    TopRight: #$E2#$94#$90;     { ┐ U+2510 }
+    Horizontal: #$E2#$94#$80;   { ─ U+2500 }
+    Vertical: #$E2#$94#$82;     { │ U+2502 }
+    BottomLeft: #$E2#$94#$94;   { └ U+2514 }
+    BottomRight: #$E2#$94#$98   { ┘ U+2518 }
   );
 
 { Helper function to get minimum of two integers }
@@ -173,7 +185,7 @@ begin
     stASCII: boxChars := ASCIIBoxChars;
     stANSI: boxChars := ANSIBoxChars;
     stVT100: boxChars := VT100BoxChars;
-    stUTF8: boxChars := ASCIIBoxChars;  { UTF8 will be implemented later }
+    stUTF8: boxChars := UTF8BoxChars;
   end;
 
   { Set color }
