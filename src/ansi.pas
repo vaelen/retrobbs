@@ -18,6 +18,28 @@ uses
 const
   ESC = #27;  { ASCII Escape character }
 
+type
+  TCharacterSet = (
+    csGB,         { British }
+    csUS,         { North American ASCII set }
+    csFI,         { Finnish }
+    csDK,         { Danish or Norwegian }
+    csSE,         { Swedish }
+    csDE,         { German }
+    csCA,         { French Canadian }
+    csBE,         { Flemish or French/Belgian }
+    csIT,         { Italian }
+    csES,         { Spanish }
+    csDrawing,    { Line Drawing }
+    csAlt,        { Alternative Character }
+    csAltDrawing, { Alternative Line drawing }
+    csNL,         { Dutch }
+    csAltFI,      { Finnish (alternate) }
+    csAltDK,      { Danish or Norwegian (alternate) }
+    csAltSE,      { Swedish (alternate) }
+    csCH          { Swiss (French or German) }
+  );
+
 { Cursor Movement Functions }
 procedure CursorUp(var output: Text; lines: TInt);
 procedure CursorDown(var output: Text; lines: TInt);
@@ -84,6 +106,10 @@ procedure InsertLines(var output: Text; count: TInt);
 procedure SetForegroundColor(var output: Text; color: TInt);
 procedure SetBackgroundColor(var output: Text; color: TInt);
 procedure SetColor(var output: Text; foreground, background: TInt);
+
+{ Character Set Functions }
+procedure SetPrimaryCharacterSet(var output: Text; charset: TCharacterSet);
+procedure SetSecondaryCharacterSet(var output: Text; charset: TCharacterSet);
 
 implementation
 
@@ -379,6 +405,42 @@ procedure SetColor(var output: Text; foreground, background: TInt);
 begin
   SetForegroundColor(output, foreground);
   SetBackgroundColor(output, background);
+end;
+
+{ Character Set Functions }
+
+function CharacterSetToChar(charset: TCharacterSet): Char;
+begin
+  case charset of
+    csGB:         CharacterSetToChar := 'A';
+    csUS:         CharacterSetToChar := 'B';
+    csFI:         CharacterSetToChar := 'C';
+    csDK:         CharacterSetToChar := 'E';
+    csSE:         CharacterSetToChar := 'H';
+    csDE:         CharacterSetToChar := 'K';
+    csCA:         CharacterSetToChar := 'Q';
+    csBE:         CharacterSetToChar := 'R';
+    csIT:         CharacterSetToChar := 'Y';
+    csES:         CharacterSetToChar := 'Z';
+    csDrawing:    CharacterSetToChar := '0';
+    csAlt:        CharacterSetToChar := '1';
+    csAltDrawing: CharacterSetToChar := '2';
+    csNL:         CharacterSetToChar := '4';
+    csAltFI:      CharacterSetToChar := '5';
+    csAltDK:      CharacterSetToChar := '6';
+    csAltSE:      CharacterSetToChar := '7';
+    csCH:         CharacterSetToChar := '=';
+  end;
+end;
+
+procedure SetPrimaryCharacterSet(var output: Text; charset: TCharacterSet);
+begin
+  Write(output, ESC, '(', CharacterSetToChar(charset));
+end;
+
+procedure SetSecondaryCharacterSet(var output: Text; charset: TCharacterSet);
+begin
+  Write(output, ESC, ')', CharacterSetToChar(charset));
 end;
 
 end.

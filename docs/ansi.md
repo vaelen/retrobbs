@@ -198,11 +198,11 @@ The following select alternative character sets. The G1 set is invoked for use b
 
 | Done | G0 Designator | G1 Designator | Character Set                      |
 |------|---------------|---------------|------------------------------------|
-| [ ]  | ESC ( A       | ESC ) A       | United Kingdom (UK)                |
-| [ ]  | ESC ( B       | ESC ) B       | United States (USASCII)            |
-| [ ]  | ESC ( 0       | ESC ) 0       | Special graphics/line drawing set  |
-| [ ]  | ESC ( 1       | ESC ) 1       | Alternative character ROM          |
-| [ ]  | ESC ( 2       | ESC ) 2       | Alternative graphic ROM            |
+| [x]  | ESC ( A       | ESC ) A       | United Kingdom (UK)                |
+| [x]  | ESC ( B       | ESC ) B       | United States (USASCII)            |
+| [x]  | ESC ( 0       | ESC ) 0       | Special graphics/line drawing set  |
+| [x]  | ESC ( 1       | ESC ) 1       | Alternative character ROM          |
+| [x]  | ESC ( 2       | ESC ) 2       | Alternative graphic ROM            |
 
 **Scrolling and Tabs:**
 
@@ -312,24 +312,24 @@ Ps is a decimal computed by adding the numbers of the desired tests:
 
 | Done | Escape Sequence | Description                      |
 |------|-----------------|----------------------------------|
-| [ ]  | ( A             | British                          |
-| [ ]  | ( B             | North American ASCII set         |
-| [ ]  | ( C             | Finnish                          |
-| [ ]  | ( E             | Danish or Norwegian              |
-| [ ]  | ( H             | Swedish                          |
-| [ ]  | ( K             | German                           |
-| [ ]  | ( Q             | French Canadian                  |
-| [ ]  | ( R             | Flemish or French/Belgian        |
-| [ ]  | ( Y             | Italian                          |
-| [ ]  | ( Z             | Spanish                          |
-| [ ]  | ( 0             | Line Drawing                     |
-| [ ]  | ( 1             | Alternative Character            |
-| [ ]  | ( 2             | Alternative Line drawing         |
-| [ ]  | ( 4             | Dutch                            |
-| [ ]  | ( 5             | Finnish                          |
-| [ ]  | ( 6             | Danish or Norwegian              |
-| [ ]  | ( 7             | Swedish                          |
-| [ ]  | ( =             | Swiss (French or German)         |
+| [x]  | ( A             | British                          |
+| [x]  | ( B             | North American ASCII set         |
+| [x]  | ( C             | Finnish                          |
+| [x]  | ( E             | Danish or Norwegian              |
+| [x]  | ( H             | Swedish                          |
+| [x]  | ( K             | German                           |
+| [x]  | ( Q             | French Canadian                  |
+| [x]  | ( R             | Flemish or French/Belgian        |
+| [x]  | ( Y             | Italian                          |
+| [x]  | ( Z             | Spanish                          |
+| [x]  | ( 0             | Line Drawing                     |
+| [x]  | ( 1             | Alternative Character            |
+| [x]  | ( 2             | Alternative Line drawing         |
+| [x]  | ( 4             | Dutch                            |
+| [x]  | ( 5             | Finnish                          |
+| [x]  | ( 6             | Danish or Norwegian              |
+| [x]  | ( 7             | Swedish                          |
+| [x]  | ( =             | Swiss (French or German)         |
 
 **Note:** All `(` may be replaced with `)`
 
