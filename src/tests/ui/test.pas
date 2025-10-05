@@ -14,7 +14,7 @@ program UITest;
 }
 
 uses
-  UI, ANSI, BBSTypes;
+  UI, ANSI, Colors, BBSTypes;
 
 var
   screen: TScreen;

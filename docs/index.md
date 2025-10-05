@@ -9,7 +9,8 @@ RetroBBS is built as a set of modular units. Those units are documented in this 
 | [x]  | [BBSTypes](bbstypes.md) | Custom types used in other units           |
 | [x]  | [Path](path.md)         | Cross-platform path abstraction layer      |
 | [x]  | [ANSI](ansi.md)         | Handles ANSI escape sequences              |
-| [ ]  | [UI](ui.md)             | A simple text based UI library             |
+| [x]  | [Colors](colors.md)     | Handles color palettes                     |
+| [x]  | [UI](ui.md)             | A simple text based UI library             |
 | [x]  | [Hash](hash.md)         | CRC and Hashing algorithms                 |
 | [x]  | [BTree](btree.md)       | A file based BTree implementation          |
 | [x]  | [DB](db.md)             | Database utilities                         |

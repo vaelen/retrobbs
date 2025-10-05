@@ -5,20 +5,17 @@ unit UI;
 
   The UI unit provides helper functions for implementing text-based user
   interfaces. It uses the ANSI unit to support ANSI control codes.
+
+  Copyright 2025, Andrew C. Young <andrew@vaelen.org>
+  MIT License
 }
 
 interface
 
 uses
-  ANSI, BBSTypes;
+  ANSI, BBSTypes, Colors;
 
 type
-  { TColor keeps track of a foreground and background color pair }
-  TColor = record
-    FG: TInt;  { Foreground: 0 - 15 }
-    BG: TInt;  { Background: 0 - 15 }
-  end;
-
   { TAlignment lists possible text alignments }
   TAlignment = (
     aLeft,    { Left Aligned }

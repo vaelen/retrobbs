@@ -64,6 +64,7 @@ begin
   RunTest('bin/tests/btree/test', 'BTree Unit Tests');
   RunTest('bin/tests/path/test', 'Path Unit Tests');
   RunTest('bin/tests/user/test', 'User Unit Tests');
+  RunTest('bin/tests/ui/test', 'UI Unit Tests');
   RunTest('bin/tests/db/test', 'DB Unit Tests');
 
   WriteLn;

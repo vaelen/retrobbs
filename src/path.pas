@@ -10,6 +10,9 @@ unit Path;
   - UNIX/Linux/Mac OS X: /
   - DOS/Windows: \
   - Mac OS 7-9: :
+
+  Copyright 2025, Andrew C. Young <andrew@vaelen.org>
+  MIT License
 }
 
 interface

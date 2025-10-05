@@ -1,15 +1,9 @@
 # Text Based User Interface
 
 The `UI` unit provides helper functions for implementing text-based user interfaces.
-It uses the `ANSI` unit to support ANSI control codes.
+It uses the `ANSI` unit to support ANSI control codes and the `Color` unit to support colors.
 
 ## Core Types
-
-The `TColor` type keeps track of a foreground and background color pair.
-| Field | Type | Notes              |
-| ----- | -----| -------------------|
-| FG    | TInt | Foreground: 0 - 15 |
-| BG    | TInt | Background: 0 - 15 |
 
 The `TAlignment` enum lists possible text alignments.
 | Value   | Description   |
