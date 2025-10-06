@@ -10,7 +10,7 @@ RetroBBS is built as a set of modular units. Those units are documented in this 
 | [x]  | [Path](path.md)         | Cross-platform path abstraction layer      |
 | [x]  | [ANSI](ansi.md)         | Handles ANSI escape sequences              |
 | [x]  | [Colors](colors.md)     | Handles color palettes                     |
-| [ ]  | [Lists](lists.md)       | A LinkedList and ArrayList implementation  |
+| [x]  | [Lists](lists.md)       | A LinkedList and ArrayList implementation  |
 | [x]  | [UI](ui.md)             | A simple text based UI library             |
 | [x]  | [Hash](hash.md)         | CRC and Hashing algorithms                 |
 | [x]  | [BTree](btree.md)       | A file based BTree implementation          |
