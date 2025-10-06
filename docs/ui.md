@@ -6,6 +6,7 @@ It uses the `ANSI` unit to support ANSI control codes and the `Color` unit to su
 ## Core Types
 
 The `TAlignment` enum lists possible text alignments.
+
 | Value   | Description   |
 | ------- | ------------- |
 | aLeft   | Left Aligned  |
@@ -13,6 +14,7 @@ The `TAlignment` enum lists possible text alignments.
 | aRight  | Right Aligned |
 
 The `TScreenType` enum denotes the character set used for drawing characters.
+
 | Value    | Description                   |
 | -------- | ----------------------------- |
 | stASCII  | Only use 7bit ASCII           |
@@ -23,12 +25,14 @@ The `TScreenType` enum denotes the character set used for drawing characters.
 **Note: The ASCII and VT100 character sets only provide characters for drawing simple boxes. ANSI and Unicode provide double line boxes and shading.**
 
 The `TBorderType` enum denotes the type of border to draw.
+
 | Value    | Description                            |
 | -------- | -------------------------------------- |
 | btSingle | Single line border                     |
 | btDouble | Double line border (ANSI/UTF8 only)    |
 
 The `TScreen` type keeps track of information related to the screen.
+
 | Field      | Type        | Notes                             |
 | ---------- | ----------- | --------------------------------- |
 | Output     | PText       | The output stream                 |
@@ -39,6 +43,7 @@ The `TScreen` type keeps track of information related to the screen.
 | ScreenType | TScreenType | Screen Type (for drawing boxes)   |
 
 The `TBox` type keeps track of the size and location of a square box.
+
 | Field  | Type |
 | ------ | -----|
 | Row    | TInt |
@@ -59,6 +64,7 @@ The `TBox` type keeps track of the size and location of a square box.
 ### ClearBox
 
 Algorithm:
+
 ```pascal
 Row := Box.Row;
 Column := Box.Column;
@@ -73,9 +79,11 @@ For i := 1 to Height do
     For j := 1 to Width
         Write(Output, ' ')
 ```
+
 ### DrawBox
 
 Algorithm:
+
 ```pascal
 Row := Box.Row;
 Column := Box.Column;
@@ -92,7 +100,7 @@ Begin
     Write(Output, StartDrawing);
 End;
 
-Write(Output, TopLeftCornerChar);
+Write(Output, TopLeft);
 For i := 1 to (Width - 2) do
     Write(Output, HorizontalLineChar);
 Write(Output, TopRightCorner);
@@ -105,7 +113,7 @@ Begin
     Write(Output, VerticalLineChar);
 End;
 
-Write(Screen.Output, BottomLeftCornerChar);
+Write(Screen.Output, BottomLeft);
 For i := 1 to (FinalWidth - 2) do
     Write(Output, HorizontalLineChar);
 Write(Output, BottomRightCorner);
@@ -122,82 +130,93 @@ Each of the character sets handles box drawing differently.
 **Note: Box drawing doesn't work unless the client supports ANSI escape codes. This is a known limitation that will be addressed later on.**
 
 ASCII:
-| Name                  | Char | C |
-| --------------------- | ---- | - |
-| TopLeftCornerChar     | 0x2B | + |
-| TopRightCornerChar    | 0x2B | + |
-| HorizontalChar        | 0x2D | - |
-| VeticalChar           | 0x7C | \| |
-| BottomLeftCornerChar  | 0x2B | + |
-| BottomRightCornerChar | 0x2B | + |
+
+| Name         | Char | C |
+| ------------ | ---- | - |
+| TopLeft      | 0x2B | + |
+| TopCenter    | 0x2B | + |
+| TopRight     | 0x2B | + |
+| CenterLeft   | 0x2B | + |
+| Center       | 0x2B | + |
+| CenterRight  | 0x2B | + |
+| BottomLeft   | 0x2B | + |
+| BottomCenter | 0x2B | + |
+| BottomRight  | 0x2B | + |
+| Horizontal   | 0x2D | - |
+| Vertical     | 0x7C | \| |
 
 ANSI:
-| Name                  | Char | C |
-| --------------------- | ---- | - |
-| TopLeftCornerChar     | 0xDA | ┌ |
-| TopRightCornerChar    | 0xBF | ┐ |
-| HorizontalChar        | 0xC4 | ─ |
-| VeticalChar           | 0xB3 | │ |
-| BottomLeftCornerChar  | 0xC0 | └ |
-| BottomRightCornerChar | 0xD9 | ┘ |
-| SplitRight            | 0xC3 | ├ |
-| SplitLeft             | 0xB4 | ┤ |
-| SplitDown             | 0xC2 | ┬ |
-| SplitUp               | 0xC1 | ┴ |
-| SplitAll              | 0xC5 | ┼ |
+
+| Name         | Char | C |
+| ------------ | ---- | - |
+| TopLeft      | 0xDA | ┌ |
+| TopCenter    | 0xC2 | ┬ |
+| TopRight     | 0xBF | ┐ |
+| CenterLeft   | 0xC3 | ├ |
+| Center       | 0xC5 | ┼ |
+| CenterRight  | 0xB4 | ┤ |
+| BottomLeft   | 0xC0 | └ |
+| BottomCenter | 0xC1 | ┴ |
+| BottomRight  | 0xD9 | ┘ |
+| Horizontal   | 0xC4 | ─ |
+| Vertical     | 0xB3 | │ |
 
 VT100:
-| Name                  | Char | C |
-| --------------------- | ---- | - |
-| TopLeftCornerChar     | 0x2F | ┌ |
-| TopRightCornerChar    | 0x5C | ┐ |
-| HorizontalChar        | 0x2D | ─ |
-| VeticalChar           | 0x7C | │ |
-| BottomLeftCornerChar  | 0x5C | └ |
-| BottomRightCornerChar | 0x2F | ┘ |
-| SplitRight            | 0xC3 | ├ |
-| SplitLeft             | 0xB4 | ┤ |
-| SplitDown             | 0xC2 | ┬ |
-| SplitUp               | 0xC1 | ┴ |
-| SplitAll              | 0xC5 | ┼ |
-| StartDrawing          | 0x0E |   |
-| StopDrawing           | 0x0F |   |
+
+| Name         | Char | C |
+| ------------ | ---- | - |
+| TopLeft      | 0x2F | ┌ |
+| TopCenter    | 0xC2 | ┬ |
+| TopRight     | 0x5C | ┐ |
+| CenterLeft   | 0xC3 | ├ |
+| Center       | 0xC5 | ┼ |
+| CenterRight  | 0xB4 | ┤ |
+| BottomLeft   | 0x5C | └ |
+| BottomCenter | 0xC1 | ┴ |
+| BottomRight  | 0x2F | ┘ |
+| Horizontal   | 0x2D | ─ |
+| Vertical     | 0x7C | │ |
+| StartDrawing | 0x0E |   |
+| StopDrawing  | 0x0F |   |
 
 **NOTE: To use the VT100 drawing characters, you must call SetSecondaryCharacterSet(output, csDrawing) first, then send SI (0x0E) before any drawing characters and SO (0x0F) afterwards.**
 
 UTF8:
-| Name                  | Codepoint | Char Sequence  | C |
-| --------------------- | --------- | -------------- | - |
-| TopLeftCornerChar     | U+250C    | 0xE2 0x94 0x8C | ┌ |
-| TopRightCornerChar    | U+2510    | 0xE2 0x94 0x90 | ┐ |
-| HorizontalChar        | U+2500    | 0xE2 0x94 0x80 | ─ |
-| VeticalChar           | U+2502    | 0xE2 0x94 0x82 | │ |
-| BottomLeftCornerChar  | U+2514    | 0xE2 0x94 0x94 | └ |
-| BottomRightCornerChar | U+2518    | 0xE2 0x94 0x98 | ┘ |
-| SplitRight            | U+251C    | 0xE2 0x94 0x9C | ├ |
-| SplitLeft             | U+2524    | 0xE2 0x94 0xA4 | ┤ |
-| SplitDown             | U+252C    | 0xE2 0x94 0xAC | ┬ |
-| SplitUp               | U+2534    | 0xE2 0x94 0xB4 | ┴ |
-| SplitAll              | U+253C    | 0xE2 0x94 0xBC | ┼ |
+
+| Name         | Codepoint | Char Sequence  | C |
+| ------------ | --------- | -------------- | - |
+| TopLeft      | U+250C    | 0xE2 0x94 0x8C | ┌ |
+| TopCenter    | U+252C    | 0xE2 0x94 0xAC | ┬ |
+| TopRight     | U+2510    | 0xE2 0x94 0x90 | ┐ |
+| CenterLeft   | U+251C    | 0xE2 0x94 0x9C | ├ |
+| Center       | U+253C    | 0xE2 0x94 0xBC | ┼ |
+| CenterRight  | U+2524    | 0xE2 0x94 0xA4 | ┤ |
+| BottomLeft   | U+2514    | 0xE2 0x94 0x94 | └ |
+| BottomCenter | U+2534    | 0xE2 0x94 0xB4 | ┴ |
+| BottomRight  | U+2518    | 0xE2 0x94 0x98 | ┘ |
+| Horizontal   | U+2500    | 0xE2 0x94 0x80 | ─ |
+| Vertical     | U+2502    | 0xE2 0x94 0x82 | │ |
 
 UTF8 (Rounded):
-| Name                  | Codepoint | Char Sequence  | C |
-| --------------------- | --------- | -------------- | - |
-| TopLeftCornerChar     | U+256D    | 0xE2 0x95 0xAD | ╭ |
-| TopRightCornerChar    | U+256E    | 0xE2 0x95 0xAE | ╮ |
-| HorizontalChar        | U+2500    | 0xE2 0x94 0x80 | ─ |
-| VeticalChar           | U+2502    | 0xE2 0x94 0x82 | │ |
-| BottomLeftCornerChar  | U+2570    | 0xE2 0x95 0xB0 | ╰ |
-| BottomRightCornerChar | U+256F    | 0xE2 0x95 0xAF | ╯ |
-| SplitRight            | U+251C    | 0xE2 0x94 0x9C | ├ |
-| SplitLeft             | U+2524    | 0xE2 0x94 0xA4 | ┤ |
-| SplitDown             | U+252C    | 0xE2 0x94 0xAC | ┬ |
-| SplitUp               | U+2534    | 0xE2 0x94 0xB4 | ┴ |
-| SplitAll              | U+253C    | 0xE2 0x94 0xBC | ┼ |
+
+| Name         | Codepoint | Char Sequence  | C |
+| ------------ | --------- | -------------- | - |
+| TopLeft      | U+256D    | 0xE2 0x95 0xAD | ╭ |
+| TopCenter    | U+252C    | 0xE2 0x94 0xAC | ┬ |
+| TopRight     | U+256E    | 0xE2 0x95 0xAE | ╮ |
+| CenterLeft   | U+251C    | 0xE2 0x94 0x9C | ├ |
+| Center       | U+253C    | 0xE2 0x94 0xBC | ┼ |
+| CenterRight  | U+2524    | 0xE2 0x94 0xA4 | ┤ |
+| BottomLeft   | U+2570    | 0xE2 0x95 0xB0 | ╰ |
+| BottomCenter | U+2534    | 0xE2 0x94 0xB4 | ┴ |
+| BottomRight  | U+256F    | 0xE2 0x95 0xAF | ╯ |
+| Horizontal   | U+2500    | 0xE2 0x94 0x80 | ─ |
+| Vertical     | U+2502    | 0xE2 0x94 0x82 | │ |
 
 ### WriteText
 
 Algorithm:
+
 ```pascal
 Row := Box.Row;
 Column := Box.Column;
@@ -262,6 +281,7 @@ End;
 ## WriteHeader
 
 Algorithm:
+
 ```pascal
 var HeaderBox: Box;
 HeaderBox.Row := Box.Row;
@@ -274,6 +294,7 @@ WriteText(Screen, HeaderBox, Color, Alignment, OffsetR, OffsetC, Text)
 ## WriteFooter
 
 Algorithm:
+
 ```pascal
 var FooterBox: Box;
 FooterBox.Row := Box.Row + Box.Height - 1;

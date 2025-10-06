@@ -37,3 +37,8 @@ Thumbs.db
 # Build artifacts
 link.res
 ppas.sh
+
+# GNU Global files
+GPATH
+GRTAGS
+GTAGS

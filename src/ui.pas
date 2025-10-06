@@ -83,52 +83,77 @@ type
 
   TBoxChars = record
     TopLeft: TBoxChar;
+    TopCenter: TBoxChar;
     TopRight: TBoxChar;
+    CenterLeft: TBoxChar;
+    Center: TBoxChar;
+    CenterRight: TBoxChar;
+    BottomLeft: TBoxChar;
+    BottomCenter: TBoxChar;
+    BottomRight: TBoxChar;
     Horizontal: TBoxChar;
     Vertical: TBoxChar;
-    BottomLeft: TBoxChar;
-    BottomRight: TBoxChar;
   end;
 
 const
   { ASCII box drawing characters }
   ASCIIBoxChars: TBoxChars = (
     TopLeft: '+';
+    TopCenter: '+';
     TopRight: '+';
-    Horizontal: '-';
-    Vertical: '|';
+    CenterLeft: '+';
+    Center: '+';
+    CenterRight: '+';
     BottomLeft: '+';
-    BottomRight: '+'
+    BottomCenter: '+';
+    BottomRight: '+';
+    Horizontal: '-';
+    Vertical: '|'
   );
 
   { ANSI (CP437) box drawing characters }
   ANSIBoxChars: TBoxChars = (
     TopLeft: #$DA;
+    TopCenter: #$C2;
     TopRight: #$BF;
-    Horizontal: #$C4;
-    Vertical: #$B3;
+    CenterLeft: #$C3;
+    Center: #$C5;
+    CenterRight: #$B4;
     BottomLeft: #$C0;
-    BottomRight: #$D9
+    BottomCenter: #$C1;
+    BottomRight: #$D9;
+    Horizontal: #$C4;
+    Vertical: #$B3
   );
 
   { VT100 box drawing characters (used with alternate character set) }
   VT100BoxChars: TBoxChars = (
     TopLeft: 'l';
+    TopCenter: 'w';
     TopRight: 'k';
-    Horizontal: 'q';
-    Vertical: 'x';
+    CenterLeft: 't';
+    Center: 'n';
+    CenterRight: 'u';
     BottomLeft: 'm';
-    BottomRight: 'j'
+    BottomCenter: 'v';
+    BottomRight: 'j';
+    Horizontal: 'q';
+    Vertical: 'x'
   );
 
   { UTF-8 box drawing characters (Unicode) }
   UTF8BoxChars: TBoxChars = (
     TopLeft: #$E2#$94#$8C;      { ┌ U+250C }
+    TopCenter: #$E2#$94#$AC;    { ┬ U+252C }
     TopRight: #$E2#$94#$90;     { ┐ U+2510 }
-    Horizontal: #$E2#$94#$80;   { ─ U+2500 }
-    Vertical: #$E2#$94#$82;     { │ U+2502 }
+    CenterLeft: #$E2#$94#$9C;   { ├ U+251C }
+    Center: #$E2#$94#$BC;       { ┼ U+253C }
+    CenterRight: #$E2#$94#$A4;  { ┤ U+2524 }
     BottomLeft: #$E2#$94#$94;   { └ U+2514 }
-    BottomRight: #$E2#$94#$98   { ┘ U+2518 }
+    BottomCenter: #$E2#$94#$B4; { ┴ U+2534 }
+    BottomRight: #$E2#$94#$98;  { ┘ U+2518 }
+    Horizontal: #$E2#$94#$80;   { ─ U+2500 }
+    Vertical: #$E2#$94#$82      { │ U+2502 }
   );
 
 { Helper function to get minimum of two integers }
