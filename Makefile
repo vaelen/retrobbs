@@ -34,6 +34,7 @@ DB_ALL_SRC = $(TEST_DIR)/db/all.pas
 LISTS_ARRAYLIST_TEST_SRC = $(TEST_DIR)/lists/arraylst.pas
 LISTS_LINKEDL_TEST_SRC = $(TEST_DIR)/lists/linkedl.pas
 LISTS_ALL_SRC = $(TEST_DIR)/lists/all.pas
+TABLE_TEST_SRC = $(TEST_DIR)/table/test.pas
 ALL_TESTS_SRC = $(TEST_DIR)/all.pas
 ANSI_DEMO_SRC = $(DEMO_DIR)/ansidemo.pas
 UI_DEMO_SRC = $(DEMO_DIR)/uidemo.pas
@@ -47,6 +48,7 @@ UI_UNIT = $(SRC_DIR)/ui.pas
 COLORS_UNIT = $(SRC_DIR)/colors.pas
 DB_UNIT = $(SRC_DIR)/db.pas
 LISTS_UNIT = $(SRC_DIR)/lists.pas
+TABLE_UNIT = $(SRC_DIR)/table.pas
 
 # Utility source files
 CRC16_SRC = $(UTIL_DIR)/crc16.pas
@@ -80,6 +82,8 @@ DB_ALL_OUTPUT = $(DB_TEST_BIN_DIR)/all
 LISTS_ARRAYLIST_TEST_OUTPUT = $(LISTS_TEST_BIN_DIR)/arraylst
 LISTS_LINKEDL_TEST_OUTPUT = $(LISTS_TEST_BIN_DIR)/linkedl
 LISTS_ALL_OUTPUT = $(LISTS_TEST_BIN_DIR)/all
+TABLE_TEST_BIN_DIR = $(TEST_BIN_DIR)/table
+TABLE_TEST_OUTPUT = $(TABLE_TEST_BIN_DIR)/test
 ALL_TESTS_OUTPUT = $(TEST_BIN_DIR)/all
 ANSI_DEMO_OUTPUT = $(DEMO_BIN_DIR)/ansidemo
 UI_DEMO_OUTPUT = $(DEMO_BIN_DIR)/uidemo
@@ -137,6 +141,9 @@ $(UI_TEST_BIN_DIR):
 
 $(LISTS_TEST_BIN_DIR):
 	mkdir -p $(LISTS_TEST_BIN_DIR)
+
+$(TABLE_TEST_BIN_DIR):
+	mkdir -p $(TABLE_TEST_BIN_DIR)
 
 # Build the ANSI test program
 $(ANSI_TEST_OUTPUT): $(ANSI_TEST_SRC) $(ANSI_UNIT) | $(ANSI_TEST_BIN_DIR)
@@ -196,6 +203,10 @@ $(LISTS_LINKEDL_TEST_OUTPUT): $(LISTS_LINKEDL_TEST_SRC) $(LISTS_UNIT) $(BBSTYPES
 $(LISTS_ALL_OUTPUT): $(LISTS_ALL_SRC) | $(LISTS_TEST_BIN_DIR)
 	$(FPC) $(FPCFLAGS) -o$(LISTS_ALL_OUTPUT) $(LISTS_ALL_SRC)
 
+# Build the Table test program
+$(TABLE_TEST_OUTPUT): $(TABLE_TEST_SRC) $(TABLE_UNIT) $(UI_UNIT) $(LISTS_UNIT) $(COLORS_UNIT) $(ANSI_UNIT) $(BBSTYPES_UNIT) | $(TABLE_TEST_BIN_DIR)
+	$(FPC) $(FPCFLAGS) -o$(TABLE_TEST_OUTPUT) $(TABLE_TEST_SRC)
+
 # Build the master test suite
 $(ALL_TESTS_OUTPUT): $(ALL_TESTS_SRC) | $(TEST_BIN_DIR)
 	$(FPC) $(FPCFLAGS) -o$(ALL_TESTS_OUTPUT) $(ALL_TESTS_SRC)
@@ -225,7 +236,7 @@ $(SHA1_OUTPUT): $(SHA1_SRC) $(HASH_UNIT) | $(UTIL_BIN_DIR)
 	$(FPC) $(FPCFLAGS) -o$(SHA1_OUTPUT) $(SHA1_SRC)
 
 # Build test programs
-test: $(ANSI_TEST_OUTPUT) $(HASH_TEST_OUTPUT) $(TYPE_TEST_OUTPUT) $(USER_TEST_OUTPUT) $(BTREE_TEST_OUTPUT) $(PATH_TEST_OUTPUT) $(UI_TEST_OUTPUT) $(DB_TEST_OUTPUT) $(LISTS_ARRAYLIST_TEST_OUTPUT) $(LISTS_LINKEDL_TEST_OUTPUT) $(ALL_TESTS_OUTPUT)
+test: $(ANSI_TEST_OUTPUT) $(HASH_TEST_OUTPUT) $(TYPE_TEST_OUTPUT) $(USER_TEST_OUTPUT) $(BTREE_TEST_OUTPUT) $(PATH_TEST_OUTPUT) $(UI_TEST_OUTPUT) $(DB_TEST_OUTPUT) $(LISTS_ARRAYLIST_TEST_OUTPUT) $(LISTS_LINKEDL_TEST_OUTPUT) $(TABLE_TEST_OUTPUT) $(ALL_TESTS_OUTPUT)
 
 # Build all Path test programs
 test-path: $(PATH_TEST_OUTPUT)
@@ -235,6 +246,9 @@ test-db: $(DB_TEST_OUTPUT) $(DB_SIMPLE_OUTPUT) $(DB_SIZE_OUTPUT) $(DB_MINIMAL_OU
 
 # Build all Lists test programs
 test-lists: $(LISTS_ARRAYLIST_TEST_OUTPUT) $(LISTS_LINKEDL_TEST_OUTPUT) $(LISTS_ALL_OUTPUT)
+
+# Build all Table test programs
+test-table: $(TABLE_TEST_OUTPUT)
 
 # Build demo programs
 demo: $(ANSI_DEMO_OUTPUT) $(UI_DEMO_OUTPUT)
@@ -275,4 +289,4 @@ run-test: $(TEST_OUTPUT)
 run-demo: $(ANSI_DEMO_OUTPUT)
 	$(ANSI_DEMO_OUTPUT)
 
-.PHONY: all test test-path test-db test-lists demo utils clean distclean run run-test run-demo
+.PHONY: all test test-path test-db test-lists test-table demo utils clean distclean run run-test run-demo

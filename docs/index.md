@@ -16,6 +16,7 @@ RetroBBS is built as a set of modular units. Those units are documented in this 
 | [x]  | [BTree](btree.md)       | A file based BTree implementation          |
 | [x]  | [DB](db.md)             | Database utilities                         |
 | [x]  | [User](user.md)         | Code for managing users and handling login |
+| [x]  | [Table](table.md)       | Scrollable table component for viewing data|
 | [ ]  | [Mail](mail.md)         | Handles local mail                         |
 | [ ]  | Board                   | Handles local message boards               |
 | [ ]  | Editor                  | A full screen text editor                  |
@@ -27,5 +28,3 @@ RetroBBS is built as a set of modular units. Those units are documented in this 
 | [ ]  | Binkp                   | The Binkp transport system for FidoNet     |
 | [ ]  | Serial                  | Handles serial ports and modems            |
 | [ ]  | Net                     | Handles TCP/IP connections                 |
-
-
