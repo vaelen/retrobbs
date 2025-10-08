@@ -70,6 +70,7 @@ type
 Define the TTableColumn record type for column definitions.
 
 **Implementation:**
+
 ```pascal
 type
   TTableColumn = record
@@ -77,15 +78,17 @@ type
     MinWidth: TInt;
     MaxWidth: TInt;
     Alignment: TAlignment;
+    Priority: TInt;
   end;
   PTableColumn = ^TTableColumn;
 ```
 
 **Acceptance Criteria:**
 
-- TTableColumn has all required fields
+- TTableColumn has all required fields including Priority
 - PTableColumn pointer type is defined
 - Uses TAlignment from UI unit
+- Priority field supports responsive column hiding (0 = always show, 1+ = optional)
 - Code compiles without errors
 
 **Dependencies:** BBSTypes, UI units
@@ -162,6 +165,7 @@ type
 
     { Cached layout values }
     VisibleRows: TInt;
+    VisibleColumns: TArrayList;
     ColumnWidths: array[0..31] of TInt;
     NeedsRedraw: Boolean;
   end;
@@ -171,6 +175,7 @@ type
 
 - All fields are present and correctly typed
 - Fields are organized into logical groups with comments
+- VisibleColumns ArrayList tracks which columns are currently visible based on priority
 - Code compiles without errors
 
 **Dependencies:** BBSTypes, Lists, UI, Colors units
@@ -190,6 +195,7 @@ Initialize a table structure with default values.
 
 - Initialize Columns ArrayList (empty)
 - Initialize Rows ArrayList (empty)
+- Initialize VisibleColumns ArrayList (empty)
 - Set Screen and Box from parameters
 - Set default BorderType to btSingle
 - Set default colors (white on black)
@@ -234,6 +240,7 @@ Free all memory associated with a table.
   - Free the row itself
 - Free Columns ArrayList
 - Free Rows ArrayList
+- Free VisibleColumns ArrayList (contains integers, not pointers)
 - Reset all pointer fields to nil
 - Reset numeric fields to 0
 
@@ -264,17 +271,31 @@ Free all memory associated with a table.
 **Description:**
 Add a column definition to the table.
 
+**Procedure Signature:**
+
+```pascal
+procedure AddTableColumn(
+  var table: TTable;
+  title: Str31;
+  minWidth: TInt;
+  maxWidth: TInt;
+  alignment: TAlignment;
+  priority: TInt
+);
+```
+
 **Implementation Requirements:**
 
 - Allocate new TTableColumn
-- Set Title, MinWidth, MaxWidth, Alignment from parameters
+- Set Title, MinWidth, MaxWidth, Alignment, Priority from parameters
 - Add column to Columns ArrayList
 - Set NeedsRedraw = True
 
 **Acceptance Criteria:**
 
-- Procedure signature matches specification
-- Column is added to Columns list
+- Procedure signature matches specification with priority parameter
+- Column is added to Columns list with all fields set correctly
+- Priority field is stored for responsive column hiding
 - NeedsRedraw flag is set
 - Code compiles without errors
 
@@ -359,39 +380,59 @@ Calculate how many data rows fit in the display area.
 **File:** `src/table.pas` (internal helper)
 
 **Description:**
-Calculate the width for each column based on terminal width and column constraints.
+Calculate the width for each visible column based on terminal width, column constraints, and priority-based hiding.
 
 **Implementation Requirements:**
 
-- Calculate available width: Box.Width - 2 (borders) - (ColumnCount - 1) (separators)
-- Calculate total minimum width: sum of all MinWidth values
-- If available < total minimum: use MinWidth for all columns
+Step 1: Determine Visible Columns (Responsive Hiding)
+
+- Calculate available width: Box.Width - 2 (borders)
+- Clear VisibleColumns ArrayList
+- Add all Priority 0 columns (always show) to VisibleColumns
+- For each priority level (1, 2, 3, etc.):
+  - Try adding all columns at this priority level
+  - Calculate total width needed (including separators)
+  - If they fit: add to VisibleColumns, continue to next priority
+  - If they don't fit: stop (don't add any columns from this or higher priorities)
+
+Step 2: Calculate Widths for Visible Columns
+
+- Calculate available width: Box.Width - 2 (borders) - (VisibleColumnCount - 1) (separators)
+- Calculate total minimum width: sum of MinWidth for visible columns
+- If available < total minimum: use MinWidth for all visible columns
 - Else distribute extra space:
-  - Count flexible columns (MaxWidth = 0)
+  - Count flexible visible columns (MaxWidth = 0)
   - Calculate extra space
-  - For each column:
+  - For each visible column:
     - If MaxWidth = 0: MinWidth + (extraSpace / flexColumns)
     - Else: Min(MinWidth + proportional share, MaxWidth)
-- Store results in table.ColumnWidths array
+- Store results in table.ColumnWidths array (indexed by position in VisibleColumns)
 - Update table.VisibleRows
 
 **Acceptance Criteria:**
 
-- Correctly calculates widths for all scenarios
-- Handles narrow terminals (uses MinWidth)
-- Distributes extra space properly
+- Correctly implements priority-based responsive column hiding
+- Priority 0 columns are always visible
+- Higher priority columns are hidden first when space is tight
+- Calculates widths correctly for visible columns only
+- Handles narrow terminals gracefully
+- Distributes extra space properly among visible columns
 - Respects MaxWidth constraints
-- Updates ColumnWidths array
+- Updates ColumnWidths array and VisibleColumns list
 - Code compiles without errors
 
 **Dependencies:** Tasks 1.5, 3.1
 
 **Test Cases:**
 
-- Terminal wider than minimum: verify extra space distributed
-- Terminal narrower than minimum: verify MinWidth used
+- Terminal wider than minimum: verify extra space distributed among visible columns
+- Terminal narrower than minimum: verify MinWidth used for visible columns
 - Mixed flexible and fixed columns: verify correct distribution
 - Single column: gets all available width
+- Priority 0 columns: always visible regardless of terminal width
+- Priority 1+ columns: hidden when terminal too narrow
+- Multiple priority levels: correct hiding order (higher priorities hidden first)
+- Very narrow terminal: only Priority 0 columns visible
 
 ---
 
@@ -515,12 +556,13 @@ Draw the header row with column titles.
 
 - Position cursor at header row (row 1 inside border)
 - Apply HeaderColor
-- For each column:
+- For each visible column (iterate through VisibleColumns list):
   - Draw Vertical separator
+  - Get column definition from Columns[VisibleColumns[i]]
   - Draw formatted column title (centered in column width)
 - Draw final Vertical separator
 - Draw header separator line below:
-  - CenterLeft + Horizontal + Center (between columns) + CenterRight
+  - CenterLeft + Horizontal + Center (between visible columns) + CenterRight
 
 **Acceptance Criteria:**
 
@@ -549,9 +591,10 @@ Draw a single data row.
 - Input: table, row data, row position, row index in dataset
 - Calculate row color using GetRowColor
 - Apply row color
-- For each column:
+- For each visible column (iterate through VisibleColumns list):
   - Draw Vertical separator
-  - Get cell value from row.Cells[i]
+  - Get column index from VisibleColumns[i]
+  - Get cell value from row.Cells[column index]
   - Format cell using FormatCell with column width and alignment
   - Draw formatted cell
 - Draw final Vertical separator
@@ -561,6 +604,7 @@ Draw a single data row.
 - Cells are formatted correctly
 - Column separators are drawn
 - Handles missing cells gracefully
+- Only displays cells for visible columns
 - Code compiles without errors
 
 **Dependencies:** Tasks 4.2, 5.1, 5.2
@@ -570,6 +614,7 @@ Draw a single data row.
 - Draw selected row (different color)
 - Draw row with long cell values (truncation)
 - Draw row with fewer cells than columns
+- Draw row with some columns hidden (verify only visible columns shown)
 
 ---
 
@@ -582,14 +627,15 @@ Draw an empty row (when there are fewer data rows than visible rows).
 **Implementation Requirements:**
 - Input: table, row position
 - Apply RowColor
-- For each column:
+- For each visible column (iterate through VisibleColumns list):
   - Draw Vertical separator
-  - Draw spaces to fill column width
+  - Get column index from VisibleColumns[i]
+  - Draw spaces to fill column width (from ColumnWidths[column index])
 - Draw final Vertical separator
 
 **Acceptance Criteria:**
 - Empty row maintains table structure
-- Uses correct spacing
+- Uses correct spacing for visible columns only
 - Code compiles without errors
 
 **Dependencies:** Task 4.2
@@ -597,6 +643,7 @@ Draw an empty row (when there are fewer data rows than visible rows).
 **Test Cases:**
 - Draw empty row in 5-column table
 - Verify proper spacing
+- Draw empty row with some columns hidden (verify only visible columns shown)
 
 ---
 
@@ -982,13 +1029,17 @@ Create helper functions to generate test data for table tests.
 Test initialization, configuration, and cleanup.
 
 **Test Cases:**
-1. InitTable: verify all fields initialized
-2. AddTableColumn: add columns, verify in list
-3. SetTableDataSource: verify callback assigned, data fetched
-4. FreeTable: verify no memory leaks
+
+1. InitTable: verify all fields initialized (including VisibleColumns)
+2. AddTableColumn: add columns with priorities, verify in list
+3. AddTableColumn: verify Priority field is stored correctly
+4. SetTableDataSource: verify callback assigned, data fetched
+5. FreeTable: verify no memory leaks (including VisibleColumns)
 
 **Acceptance Criteria:**
 - All tests pass
+- Priority field is correctly stored in columns
+- VisibleColumns ArrayList is initialized and freed
 - No memory leaks detected
 - Code compiles without errors
 
@@ -1000,7 +1051,7 @@ Test initialization, configuration, and cleanup.
 **File:** `src/tests/table/layout.pas`
 
 **Description:**
-Test column width and row calculation.
+Test column width and row calculation, including responsive column hiding.
 
 **Test Cases:**
 1. CalculateVisibleRows: various box heights
@@ -1009,9 +1060,16 @@ Test column width and row calculation.
 4. CalculateColumnWidths: mixed fixed/flexible columns
 5. CalculateColumnWidths: single column
 6. CalculateColumnWidths: many columns
+7. Responsive hiding: all Priority 0 columns visible on narrow screen
+8. Responsive hiding: Priority 1 columns hidden on very narrow screen
+9. Responsive hiding: all columns visible on wide screen
+10. Responsive hiding: verify VisibleColumns list populated correctly
+11. Responsive hiding: mixed priorities with incremental hiding
 
 **Acceptance Criteria:**
 - All calculations are correct
+- Responsive column hiding works as expected
+- VisibleColumns list contains correct column indices
 - Edge cases handled properly
 - Code compiles without errors
 
@@ -1057,6 +1115,7 @@ Test all navigation operations.
 Test edge cases and error conditions.
 
 **Test Cases:**
+
 1. Empty dataset (0 rows)
 2. Single row dataset
 3. Fewer rows than visible area
@@ -1067,11 +1126,14 @@ Test edge cases and error conditions.
 8. Unknown total record count
 9. Very small terminal (can't fit minimum widths)
 10. Very small box (can't fit even one row)
+11. All columns have Priority > 0 (all optional) - at least Priority 0 columns should show
+12. Terminal too narrow to fit even Priority 0 columns - graceful degradation
+13. Many columns with same priority - all should show/hide together
 
 **Acceptance Criteria:**
 - All edge cases handled gracefully
 - No crashes or errors
-- Reasonable fallback behavior
+- Reasonable fallback behavior for responsive hiding edge cases
 - Code compiles without errors
 
 **Dependencies:** Tasks 6.6, 7.1-7.6, 9.1
@@ -1174,14 +1236,18 @@ Create a demo program showing table component in action.
 
 **Implementation:**
 - Generate sample data (users, products, or similar)
+- Create columns with mixed priorities to demonstrate responsive hiding
+  - Example: ID (Priority 0), Name (Priority 0), Email (Priority 1), LastLogin (Priority 2)
 - Display table with sample data
 - Allow navigation with arrow keys
 - Show selection with Enter key
+- Allow terminal resize to demonstrate responsive column hiding
 - Exit with Esc/Q
 
 **Acceptance Criteria:**
 - Demo compiles and runs
-- Shows all major features
+- Shows all major features including responsive column hiding
+- Demonstrates priority-based hiding on narrow terminals
 - User-friendly and instructive
 - Code compiles without errors
 
@@ -1254,6 +1320,15 @@ Create a demo program showing table component in action.
 - Cache layout calculations
 - Only redraw when NeedsRedraw flag is set
 - Reuse allocated memory where possible
+
+### Responsive Column Hiding
+
+- VisibleColumns ArrayList must be updated by CalculateColumnWidths
+- Priority 0 columns always show (if they fit)
+- Higher priority columns (1, 2, 3...) hide first on narrow terminals
+- All columns at the same priority level show/hide together
+- Drawing code must iterate through VisibleColumns, not all Columns
+- Test responsive behavior with various terminal widths
 
 ### Compatibility
 - Test on all terminal types (ASCII, ANSI, VT100, UTF8)

@@ -54,6 +54,7 @@ type
     MinWidth: TInt;         { Minimum width in characters }
     MaxWidth: TInt;         { Maximum width (0 = unlimited) }
     Alignment: TAlignment;  { Left, Right, or Center alignment }
+    Priority: TInt;         { Display priority (0 = always show, higher = hide first) }
   end;
   PTableColumn = ^TTableColumn;
 ```
@@ -64,12 +65,38 @@ type
 - `MinWidth` - Minimum column width in characters (for content, not including borders)
 - `MaxWidth` - Maximum column width (0 = no maximum, takes proportional share of remaining space)
 - `Alignment` - How cell content is aligned within the column
+- `Priority` - Display priority for responsive hiding:
+  - `0` = Always show (required column)
+  - `1-9` = Optional columns, higher numbers are hidden first when space is limited
 
-**Width Calculation:**
+**Width Calculation with Responsive Hiding:**
 
-- If terminal is too narrow, columns use `MinWidth` and content may be truncated
-- If terminal is wide enough, extra space is distributed among flexible columns (those with `MaxWidth = 0`)
-- Columns with `MaxWidth > 0` are capped at that width
+1. Calculate available width: `Box.Width - 2 (borders)`
+2. Start with all Priority 0 columns (always show)
+3. Try adding columns in priority order (1, then 2, then 3, etc.)
+4. For each priority level, add all columns at that level if they fit
+5. Stop when adding the next priority level would exceed available width
+6. Distribute remaining space among visible flexible columns
+
+**Example:** User table with 5 columns on narrow terminal (40 chars wide):
+
+```text
+Priority 0: ID (6 chars) + Name (10 chars) = required
+Priority 1: Email (15 chars)
+Priority 2: Full Name (15 chars)
+Priority 3: Location (10 chars)
+
+40 chars available:
+- Show ID + Name (16 + separators = 19) ✓
+- Try adding Email (19 + 15 + sep = 35) ✓
+- Try adding Full Name (35 + 15 + sep = 51) ✗ Too wide!
+- Result: Show only ID, Name, Email
+
+80 chars available:
+- Show all columns ✓
+```
+
+This ensures the most important information is always visible while gracefully degrading on narrow terminals.
 
 ### TTableFetchProc
 
@@ -196,7 +223,8 @@ type
 
     { Cached layout values }
     VisibleRows: TInt;            { Number of rows that fit in display area }
-    ColumnWidths: array[0..31] of TInt;  { Calculated column widths }
+    VisibleColumns: TArrayList;   { List of indices into Columns for visible columns }
+    ColumnWidths: array[0..31] of TInt;  { Calculated column widths (for visible columns only) }
     NeedsRedraw: Boolean;         { Flag indicating table needs to be redrawn }
   end;
 ```
@@ -204,10 +232,12 @@ type
 **Fields:**
 
 **Display Properties:**
+
 - `Screen` - The TScreen context (output stream, dimensions, capabilities)
 - `Box` - Position and size of the table on screen
 
 **Appearance:**
+
 - `BorderType` - Single or double line box borders
 - `BorderColor` - Color for table borders and column separators
 - `HeaderColor` - Background/foreground for header row
@@ -216,23 +246,29 @@ type
 - `SelectedColor` - Background/foreground for selected row
 
 **Column Definitions:**
+
 - `Columns` - ArrayList of PTableColumn defining each column
 
 **Current Data:**
+
 - `Rows` - ArrayList of PTableRow containing currently visible data
 
 **Navigation State:**
+
 - `TopIndex` - Index in the full dataset of the first visible row (0-based)
 - `SelectedIndex` - Index in the full dataset of the currently selected row (0-based)
 - `SelectedOffset` - Position of selected row within visible area (0 = top row)
 - `TotalRecords` - Total number of records in the dataset, or -1 if unknown
 
 **Data Source:**
+
 - `FetchData` - Callback function to fetch data when scrolling
 
 **Cached Layout:**
+
 - `VisibleRows` - Number of data rows that fit in the display area (calculated during draw)
-- `ColumnWidths` - Calculated width for each column (calculated during draw)
+- `VisibleColumns` - ArrayList of TInt containing indices into Columns array for columns that are currently visible based on terminal width and priority
+- `ColumnWidths` - Calculated width for each visible column (calculated during draw)
 - `NeedsRedraw` - Flag set when table needs to be redrawn
 
 ## Table Procedures and Functions
@@ -248,11 +284,13 @@ procedure InitTable(var table: TTable; screen: TScreen; box: TBox);
 ```
 
 **Parameters:**
+
 - `table` - The table structure to initialize
 - `screen` - Screen context for drawing
 - `box` - Position and size of the table
 
 **Description:**
+
 - Initializes all fields to default values
 - Sets up empty Columns and Rows ArrayLists
 - Sets default colors (white on black)
@@ -269,6 +307,7 @@ procedure FreeTable(var table: TTable);
 ```
 
 **Description:**
+
 - Frees all column definitions
 - Frees all row data (rows and cells)
 - Frees the Columns and Rows ArrayLists
@@ -286,18 +325,22 @@ procedure AddTableColumn(
   title: Str31;
   minWidth: TInt;
   maxWidth: TInt;
-  alignment: TAlignment
+  alignment: TAlignment;
+  priority: TInt
 );
 ```
 
 **Parameters:**
+
 - `table` - The table to add the column to
 - `title` - Column header text
 - `minWidth` - Minimum width in characters
 - `maxWidth` - Maximum width (0 = unlimited)
 - `alignment` - Text alignment (aLeft, aCenter, aRight)
+- `priority` - Display priority (0 = always show, higher values hide first on narrow terminals)
 
 **Description:**
+
 - Creates a new TTableColumn with the given properties
 - Adds it to the table's Columns list
 - Sets NeedsRedraw flag
@@ -317,11 +360,13 @@ procedure SetTableDataSource(
 ```
 
 **Parameters:**
+
 - `table` - The table to configure
 - `fetchProc` - Callback function to fetch data
 - `totalRecords` - Total number of records in dataset (-1 if unknown)
 
 **Description:**
+
 - Assigns the fetch callback
 - Stores total record count
 - Clears any existing row data
@@ -378,13 +423,15 @@ procedure DrawTable(var table: TTable);
 **Layout Calculation Details:**
 
 Visible rows calculation:
-```
+
+```text
 VisibleRows = Box.Height - 4
   (4 = top border + header + separator + bottom border)
 ```
 
 Column width calculation:
-```
+
+```text
 1. Calculate available width:
    AvailableWidth = Box.Width - 2 (borders) - (ColumnCount - 1) (separators)
 
@@ -417,6 +464,7 @@ procedure TableScrollDown(var table: TTable);
 ```
 
 **Description:**
+
 - Increments SelectedIndex (if not at end)
 - Increments SelectedOffset
 - If SelectedOffset exceeds visible area:
@@ -426,6 +474,7 @@ procedure TableScrollDown(var table: TTable);
 - Sets NeedsRedraw flag
 
 **Boundary Handling:**
+
 - If at last record, does nothing
 - If TotalRecords is known, enforces upper bound
 - If TotalRecords is unknown, tries to fetch; stops when no data returned
@@ -439,6 +488,7 @@ procedure TableScrollUp(var table: TTable);
 ```
 
 **Description:**
+
 - Decrements SelectedIndex (if not at top)
 - Decrements SelectedOffset
 - If SelectedOffset becomes negative:
@@ -448,6 +498,7 @@ procedure TableScrollUp(var table: TTable);
 - Sets NeedsRedraw flag
 
 **Boundary Handling:**
+
 - If at first record (index 0), does nothing
 
 #### TablePageDown
@@ -459,6 +510,7 @@ procedure TablePageDown(var table: TTable);
 ```
 
 **Description:**
+
 - Advances SelectedIndex by VisibleRows
 - Advances TopIndex by VisibleRows
 - Keeps SelectedOffset constant
@@ -475,6 +527,7 @@ procedure TablePageUp(var table: TTable);
 ```
 
 **Description:**
+
 - Decrements SelectedIndex by VisibleRows
 - Decrements TopIndex by VisibleRows
 - Keeps SelectedOffset constant
@@ -491,6 +544,7 @@ procedure TableGoToTop(var table: TTable);
 ```
 
 **Description:**
+
 - Sets TopIndex to 0
 - Sets SelectedIndex to 0
 - Sets SelectedOffset to 0
@@ -506,6 +560,7 @@ procedure TableGoToBottom(var table: TTable);
 ```
 
 **Description:**
+
 - If TotalRecords is known:
   - Sets SelectedIndex to TotalRecords - 1
   - Calculates TopIndex to show last page
@@ -526,11 +581,13 @@ procedure RefreshTable(var table: TTable);
 ```
 
 **Description:**
+
 - Frees existing row data
 - Calls FetchData callback with current TopIndex
 - Sets NeedsRedraw flag
 
 **Use Cases:**
+
 - After inserting a new record
 - After deleting a record
 - After updating a record
@@ -545,10 +602,12 @@ function GetSelectedRecordID(var table: TTable): TLong;
 ```
 
 **Returns:**
+
 - RecordID of selected row
 - -1 if no selection or no data
 
 **Description:**
+
 - Calculates which row in the Rows list is selected
 - Returns that row's RecordID
 - Used by caller to determine which record user has selected
@@ -562,20 +621,24 @@ function SetSelectedRecordID(var table: TTable; recordID: TLong): Boolean;
 ```
 
 **Parameters:**
+
 - `table` - The table
 - `recordID` - RecordID to select
 
 **Returns:**
+
 - True if record was found and selected
 - False if record not found
 
 **Description:**
+
 - Searches current visible rows for matching RecordID
 - If found, updates SelectedIndex and SelectedOffset
 - If not found, does not change selection
 - Sets NeedsRedraw flag if selection changed
 
 **Use Case:**
+
 - After inserting a new record, select it
 - After updating a record, ensure it stays selected
 
@@ -595,7 +658,8 @@ For each cell to be drawn:
 5. **Draw column separator** (except after last column)
 
 **Example:**
-```
+
+```text
 Column width: 12
 Cell value: "Alice Johnson"
 Alignment: Left
@@ -625,26 +689,31 @@ Alternation is based on row position in dataset (SelectedIndex), not display pos
 The table uses the box drawing characters defined in the UI unit:
 
 **Top border:**
-```
+
+```text
 ┌────────┬───────────┬──────────────────┐
 ```
 
 **Header separator:**
-```
+
+```text
 ├────────┼───────────┼──────────────────┤
 ```
 
 **Bottom border:**
-```
+
+```text
 └────────┴───────────┴──────────────────┘
 ```
 
 **Data rows:**
-```
+
+```text
 │ 000001 │ sysop     │ System Operator  │
 ```
 
 Characters used:
+
 - TopLeft, TopCenter, TopRight
 - CenterLeft, Center, CenterRight
 - BottomLeft, BottomCenter, BottomRight
@@ -657,10 +726,12 @@ Characters used:
 The table component follows these ownership rules:
 
 **Table Owns:**
+
 - Column definitions (PTableColumn)
 - Current row data (PTableRow and PTableCell)
 
 **Caller Owns:**
+
 - The TTable structure itself
 - The TScreen structure
 - The fetch callback function
@@ -668,6 +739,7 @@ The table component follows these ownership rules:
 ### Memory Lifecycle
 
 **During FetchData callback:**
+
 1. Caller allocates PTableRow for each row
 2. Caller allocates TArrayList for Cells
 3. Caller allocates PTableCell for each cell
@@ -675,6 +747,7 @@ The table component follows these ownership rules:
 5. Caller adds rows to output ArrayList
 
 **After FetchData returns:**
+
 1. Table takes ownership of all row/cell memory
 2. Table displays the data
 3. On next fetch or FreeTable, table frees all row/cell memory
@@ -683,7 +756,7 @@ The table component follows these ownership rules:
 
 For a 10-row display with 5 columns:
 
-```
+```text
 Memory allocated per screen:
   10 TTableRow structures  = 10 * sizeof(TTableRow)
   10 Cell ArrayLists       = 10 * ArrayList overhead
@@ -730,12 +803,12 @@ table.RowColor := MakeColor(cWhite, cBlack);
 table.AltRowColor := MakeColor(cWhite, cBlue);
 table.SelectedColor := MakeColor(cBlack, cWhite);
 
-{ Define columns }
-AddTableColumn(table, 'ID', 6, 8, aLeft);
-AddTableColumn(table, 'Name', 10, 15, aLeft);
-AddTableColumn(table, 'Full Name', 15, 25, aLeft);
-AddTableColumn(table, 'Email', 15, 30, aLeft);
-AddTableColumn(table, 'Location', 10, 20, aLeft);
+{ Define columns with priorities }
+AddTableColumn(table, 'ID', 6, 8, aLeft, 0);          { Always show }
+AddTableColumn(table, 'Name', 10, 15, aLeft, 0);      { Always show }
+AddTableColumn(table, 'Email', 15, 30, aLeft, 1);     { Hide 3rd on narrow }
+AddTableColumn(table, 'Full Name', 15, 25, aLeft, 2); { Hide 2nd on narrow }
+AddTableColumn(table, 'Location', 10, 20, aLeft, 3);  { Hide 1st on narrow }
 
 { Set data source }
 SetTableDataSource(table, @FetchUserData, GetUserCount());
