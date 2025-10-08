@@ -12,11 +12,12 @@ RetroBBS is built as a set of modular units. Those units are documented in this 
 | [x]  | [Colors](colors.md)     | Handles color palettes                     |
 | [x]  | [Lists](lists.md)       | A LinkedList and ArrayList implementation  |
 | [x]  | [UI](ui.md)             | A simple text based UI library             |
+| [x]  | [Table](table.md)       | Scrollable table component for viewing data|
+| [x]  | [OSUtils](osutils.md)   | Utilities for working with the OS          |
 | [x]  | [Hash](hash.md)         | CRC and Hashing algorithms                 |
 | [x]  | [BTree](btree.md)       | A file based BTree implementation          |
 | [x]  | [DB](db.md)             | Database utilities                         |
 | [x]  | [User](user.md)         | Code for managing users and handling login |
-| [x]  | [Table](table.md)       | Scrollable table component for viewing data|
 | [ ]  | [Mail](mail.md)         | Handles local mail                         |
 | [ ]  | Board                   | Handles local message boards               |
 | [ ]  | Editor                  | A full screen text editor                  |

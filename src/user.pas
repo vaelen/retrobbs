@@ -97,6 +97,9 @@ function HasAccess(user: TUser; accessBit: TWord): Boolean;
 { Check if user is a sysop }
 function IsSysop(user: TUser): Boolean;
 
+{ Get total count of users in database }
+function GetUserCount: TInt;
+
 implementation
 
 uses
@@ -526,6 +529,19 @@ end;
 function IsSysop(user: TUser): Boolean;
 begin
   IsSysop := HasAccess(user, ACCESS_SYSOP);
+end;
+
+function GetUserCount: TInt;
+begin
+  GetUserCount := 0;
+
+  if not UserDatabase.IsOpen then
+    if not InitUserDatabase then
+      Exit;
+
+  { The NextRecordID is one more than the last assigned ID }
+  { Since IDs start at 1, the count is NextRecordID - 1 }
+  GetUserCount := UserDatabase.Header.NextRecordID - 1;
 end;
 
 { Module initialization }

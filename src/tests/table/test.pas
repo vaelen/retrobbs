@@ -4,6 +4,9 @@ program TableComponentTest;
   Basic Table Component Test
 
   Tests initialization, configuration, and basic drawing of the table component.
+
+  Copyright 2025, Andrew C. Young <andrew@vaelen.org>
+  MIT License
 }
 
 uses

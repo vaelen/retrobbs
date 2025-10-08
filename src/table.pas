@@ -5,6 +5,9 @@ unit Table;
 
   Provides a scrollable, paginated table display for viewing tabular data.
   Uses callback-based data loading to minimize memory usage.
+
+  Copyright 2025, Andrew C. Young <andrew@vaelen.org>
+  MIT License
 }
 
 interface
