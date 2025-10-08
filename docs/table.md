@@ -1,6 +1,6 @@
 # Table Component
 
-The `Table` component provides a scrollable, paginated table display for viewing tabular data. It is designed to work with large datasets by using a callback-basced data loading mechanism that only loads one screen of data at a time, minimizing m66666666666666666666666666666666666666666666666                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             bnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnemory usage.
+The `Table` component provides a scrollable, paginated table display for viewing tabular data. It is designed to work with large datasets by using a callback-basced data loading mechanism that only loads one screen of data at a time, minimizing memory usage.
 
 ## Design Philosophy
 
@@ -39,6 +39,7 @@ type
 ```
 
 **Fields:**
+
 - `RecordID` - Unique identifier for this row in the underlying dataset. Used for callbacks and selection tracking.
 - `Cells` - ArrayList of cell values, one for each column. Must match the number of columns defined in the table.
 
@@ -58,12 +59,14 @@ type
 ```
 
 **Fields:**
+
 - `Title` - Text displayed in the column header
 - `MinWidth` - Minimum column width in characters (for content, not including borders)
 - `MaxWidth` - Maximum column width (0 = no maximum, takes proportional share of remaining space)
 - `Alignment` - How cell content is aligned within the column
 
 **Width Calculation:**
+
 - If terminal is too narrow, columns use `MinWidth` and content may be truncated
 - If terminal is wide enough, extra space is distributed among flexible columns (those with `MaxWidth = 0`)
 - Columns with `MaxWidth > 0` are capped at that width
@@ -82,15 +85,18 @@ type
 ```
 
 **Parameters:**
+
 - `startIndex` - The position in the full dataset to start fetching from (0-based index)
 - `maxRows` - Maximum number of rows to fetch (typically the number of visible rows)
 - `rows` - Output parameter; caller should populate this ArrayList with PTableRow pointers
 
 **Returns:**
+
 - `True` if data was successfully fetched
 - `False` if an error occurred or no data is available
 
 **Caller Responsibilities:**
+
 - Initialize the `rows` ArrayList before adding items
 - Allocate memory for each TTableRow and its Cells ArrayList
 - Populate RecordID and Cells for each row
@@ -800,40 +806,47 @@ FreeTable(table);
 The following features are intentionally omitted from the initial implementation but may be added later:
 
 ### Sorting
-- Click column header to sort by that column
+
+- Select column header to sort by that column
 - Arrow indicator showing sort column and direction
 - Callback to re-fetch sorted data
 
 ### Filtering
+
 - Text filter applied to one or more columns
 - Callback to fetch filtered data
 - Display filter status in footer
 
 ### Searching
+
 - Incremental search by typing
 - Jump to next/previous match
 - Highlight matching text
 
 ### Editing
+
 - In-place cell editing
 - Callback to validate and save changes
 - Mark modified rows
 
 ### Horizontal Scrolling
+
 - Support for tables wider than terminal
 - Scroll left/right to view additional columns
 - Keep first column(s) frozen
 
 ### Column Resizing
+
 - Interactive column width adjustment
 - Save/restore column widths
 
 ### Multi-Select
+
 - Select multiple rows with Space key
 - Bulk operations on selected rows
 
 ### Copy to Clipboard
-- Copy selected row(s) to clipboard
+
 - Export visible data to CSV
 
 ## Implementation Notes
@@ -848,6 +861,7 @@ The following features are intentionally omitted from the initial implementation
 ### Terminal Compatibility
 
 The table works with all screen types:
+
 - ASCII: Uses +, -, | for borders
 - ANSI: Uses CP437 box drawing characters
 - VT100: Uses alternate character set
