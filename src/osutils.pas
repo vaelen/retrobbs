@@ -27,6 +27,11 @@ uses
   {$ENDIF}
   ;
 
+{$IFDEF UNIX}
+{ External C function for TTY detection }
+function isatty(fd: cint): cint; cdecl; external 'c' name 'isatty';
+{$ENDIF}
+
 { Query terminal size using ioctl TIOCGWINSZ }
 procedure QueryTerminalSize(var output: Text; var width, height: TInt);
 {$IFDEF UNIX}
@@ -62,24 +67,51 @@ end;
 
 { Initialize a TScreen instance in an OS-specific way }
 procedure InitializeScreen(var screen: TScreen; var output: Text);
+{$IFDEF UNIX}
+var
+  isTTY: Boolean;
+{$ENDIF}
 begin
   { Set default values }
   screen.Output := @output;
   screen.Width := 80;
   screen.Height := 25;
-  screen.ScreenType := stVT100;
-  screen.IsANSI := True;
-  screen.IsColor := True;
+  screen.ScreenType := stASCII;
+  screen.IsANSI := False;
+  screen.IsColor := False;
 
   { Platform-specific initialization }
   {$IFDEF MSDOS}
   screen.ScreenType := stANSI;
+  screen.IsANSI := True;
+  screen.IsColor := True;
+  {$ENDIF}
+
+  {$IFDEF UNIX}
+  { Check if output is connected to a TTY }
+  isTTY := (isatty(1) <> 0);  { File descriptor 1 = stdout }
+
+  if isTTY then
+  begin
+    { Connected to a terminal - use VT100 }
+    screen.ScreenType := stVT100;
+    screen.IsANSI := True;
+    screen.IsColor := True;
+  end
+  else
+  begin
+    { Piped output - use ASCII only }
+    screen.ScreenType := stASCII;
+    screen.IsANSI := False;
+    screen.IsColor := False;
+  end;
   {$ENDIF}
 
   QueryTerminalSize(output, screen.Width, screen.Height);
 
-  { Clear screen }
-  ClearScreen(output);
+  { Clear screen only if connected to terminal }
+  if screen.IsANSI then
+    ClearScreen(output);
 end;
 
 end.

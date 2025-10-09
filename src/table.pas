@@ -494,20 +494,13 @@ var
 begin
   chars := UI.GetBoxChars(table.Screen.ScreenType, table.BorderType);
 
-  { Enable box drawing mode }
+  { Phase 1: Draw borders and separators with box drawing enabled }
   UI.EnableBoxDrawing(table.Screen);
 
-  { Position at header row }
-  MoveCursor(table.Screen, table.Box.Row + 1, table.Box.Column + 1);
-  SetColor(table.Screen, table.HeaderColor);
-
-  { Draw column headers }
+  { Draw column separators }
   currentCol := table.Box.Column + 1;
   for i := 0 to table.VisibleColumns.Count - 1 do
   begin
-    colIdx := TInt(PtrUInt(GetArrayListItem(table.VisibleColumns, i)));
-    column := PTableColumn(GetArrayListItem(table.Columns, colIdx));
-
     { Draw separator before column (except first) }
     if i > 0 then
     begin
@@ -516,12 +509,6 @@ begin
       UI.WriteBoxChar(table.Screen, chars.Vertical);
       Inc(currentCol);
     end;
-
-    { Draw column title (centered) }
-    formatted := FormatCell(column^.Title, table.ColumnWidths[i], aCenter);
-    MoveCursor(table.Screen, table.Box.Row + 1, currentCol);
-    SetColor(table.Screen, table.HeaderColor);
-    WriteText(table.Screen, formatted);
     currentCol := currentCol + table.ColumnWidths[i];
   end;
 
@@ -536,7 +523,6 @@ begin
     { Draw separator junction (except first) }
     if i > 0 then
     begin
-      MoveCursor(table.Screen, table.Box.Row + 2, currentCol);
       UI.WriteBoxChar(table.Screen, chars.Center);
       Inc(currentCol);
     end;
@@ -547,11 +533,28 @@ begin
     currentCol := currentCol + table.ColumnWidths[i];
   end;
 
-  MoveCursor(table.Screen, table.Box.Row + 2, table.Box.Column + table.Box.Width - 1);
   UI.WriteBoxChar(table.Screen, chars.CenterRight);
 
-  { Disable box drawing mode }
   UI.DisableBoxDrawing(table.Screen);
+
+  { Phase 2: Draw header text with box drawing disabled }
+  currentCol := table.Box.Column + 1;
+  for i := 0 to table.VisibleColumns.Count - 1 do
+  begin
+    { Skip separator position (except first) }
+    if i > 0 then
+      Inc(currentCol);
+
+    colIdx := TInt(PtrUInt(GetArrayListItem(table.VisibleColumns, i)));
+    column := PTableColumn(GetArrayListItem(table.Columns, colIdx));
+
+    { Draw column title (centered) }
+    formatted := FormatCell(column^.Title, table.ColumnWidths[i], aCenter);
+    MoveCursor(table.Screen, table.Box.Row + 1, currentCol);
+    SetColor(table.Screen, table.HeaderColor);
+    WriteText(table.Screen, formatted);
+    currentCol := currentCol + table.ColumnWidths[i];
+  end;
 end;
 
 procedure DrawTableRow(var table: TTable; row: PTableRow; rowPosition: TInt; rowIndex: TInt);
