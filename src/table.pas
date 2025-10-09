@@ -416,7 +416,7 @@ procedure DrawTableBorder(var table: TTable);
 }
 var
   chars: TBoxChars;
-  i, row, col: TInt;
+  i, row, col, currentCol: TInt;
 begin
   { Get appropriate box characters for terminal type }
   chars := UI.GetBoxChars(table.Screen.ScreenType, table.BorderType);
@@ -424,13 +424,28 @@ begin
   { Enable box drawing mode }
   UI.EnableBoxDrawing(table.Screen);
 
-  { Draw top border }
+  { Draw top border with column junctions }
   MoveCursor(table.Screen, table.Box.Row, table.Box.Column);
   SetColor(table.Screen, table.BorderColor);
   UI.WriteBoxChar(table.Screen, chars.TopLeft);
-  for i := 1 to table.Box.Width - 2 do
-    UI.WriteBoxChar(table.Screen, chars.Horizontal);
-  UI.WriteBoxChar(table.Screen, chars.TopRight);
+
+  currentCol := table.Box.Column + 1;
+  for i := 0 to table.VisibleColumns.Count - 1 do
+  begin
+    { Draw horizontal line for this column }
+    for col := 1 to table.ColumnWidths[i] do
+      UI.WriteBoxChar(table.Screen, chars.Horizontal);
+    currentCol := currentCol + table.ColumnWidths[i];
+
+    { Draw junction or right corner }
+    if i < table.VisibleColumns.Count - 1 then
+    begin
+      UI.WriteBoxChar(table.Screen, chars.TopCenter);
+      Inc(currentCol);
+    end
+    else
+      UI.WriteBoxChar(table.Screen, chars.TopRight);
+  end;
 
   { Draw side borders }
   for row := 1 to table.Box.Height - 2 do
@@ -441,12 +456,27 @@ begin
     UI.WriteBoxChar(table.Screen, chars.Vertical);
   end;
 
-  { Draw bottom border }
+  { Draw bottom border with column junctions }
   MoveCursor(table.Screen, table.Box.Row + table.Box.Height - 1, table.Box.Column);
   UI.WriteBoxChar(table.Screen, chars.BottomLeft);
-  for i := 1 to table.Box.Width - 2 do
-    UI.WriteBoxChar(table.Screen, chars.Horizontal);
-  UI.WriteBoxChar(table.Screen, chars.BottomRight);
+
+  currentCol := table.Box.Column + 1;
+  for i := 0 to table.VisibleColumns.Count - 1 do
+  begin
+    { Draw horizontal line for this column }
+    for col := 1 to table.ColumnWidths[i] do
+      UI.WriteBoxChar(table.Screen, chars.Horizontal);
+    currentCol := currentCol + table.ColumnWidths[i];
+
+    { Draw junction or right corner }
+    if i < table.VisibleColumns.Count - 1 then
+    begin
+      UI.WriteBoxChar(table.Screen, chars.BottomCenter);
+      Inc(currentCol);
+    end
+    else
+      UI.WriteBoxChar(table.Screen, chars.BottomRight);
+  end;
 
   { Disable box drawing mode }
   UI.DisableBoxDrawing(table.Screen);
