@@ -938,7 +938,6 @@ The table works with all screen types:
 - ASCII: Uses +, -, | for borders
 - ANSI: Uses CP437 box drawing characters
 - VT100: Uses alternate character set
-- UTF8: Uses Unicode box drawing characters
 
 ### Thread Safety
 

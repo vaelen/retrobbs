@@ -120,61 +120,6 @@ implementation
 uses
   ANSI;
 
-type
-  TBoxChar = String[3];
-  TBoxChars = record
-    TopLeft: TBoxChar;
-    TopCenter: TBoxChar;
-    TopRight: TBoxChar;
-    CenterLeft: TBoxChar;
-    Center: TBoxChar;
-    CenterRight: TBoxChar;
-    BottomLeft: TBoxChar;
-    BottomCenter: TBoxChar;
-    BottomRight: TBoxChar;
-    Horizontal: TBoxChar;
-    Vertical: TBoxChar;
-  end;
-
-const
-  ASCIIBoxChars: TBoxChars = (
-    TopLeft: '+'; TopCenter: '+'; TopRight: '+';
-    CenterLeft: '+'; Center: '+'; CenterRight: '+';
-    BottomLeft: '+'; BottomCenter: '+'; BottomRight: '+';
-    Horizontal: '-'; Vertical: '|'
-  );
-
-  ANSIBoxChars: TBoxChars = (
-    TopLeft: #$DA; TopCenter: #$C2; TopRight: #$BF;
-    CenterLeft: #$C3; Center: #$C5; CenterRight: #$B4;
-    BottomLeft: #$C0; BottomCenter: #$C1; BottomRight: #$D9;
-    Horizontal: #$C4; Vertical: #$B3
-  );
-
-  VT100BoxChars: TBoxChars = (
-    TopLeft: 'l'; TopCenter: 'w'; TopRight: 'k';
-    CenterLeft: 't'; Center: 'n'; CenterRight: 'u';
-    BottomLeft: 'm'; BottomCenter: 'v'; BottomRight: 'j';
-    Horizontal: 'q'; Vertical: 'x'
-  );
-
-  UTF8BoxChars: TBoxChars = (
-    TopLeft: '┌'; TopCenter: '┬'; TopRight: '┐';
-    CenterLeft: '├'; Center: '┼'; CenterRight: '┤';
-    BottomLeft: '└'; BottomCenter: '┴'; BottomRight: '┘';
-    Horizontal: '─'; Vertical: '│'
-  );
-
-function GetBoxChars(screenType: TScreenType; borderType: TBorderType): TBoxChars;
-begin
-  case screenType of
-    stASCII: GetBoxChars := ASCIIBoxChars;
-    stANSI: GetBoxChars := ANSIBoxChars;
-    stVT100: GetBoxChars := VT100BoxChars;
-    stUTF8: GetBoxChars := UTF8BoxChars;
-  end;
-end;
-
 { Screen drawing helpers }
 
 procedure MoveCursor(var screen: TScreen; row, col: TInt);
@@ -186,17 +131,6 @@ procedure SetColor(var screen: TScreen; color: TColor);
 begin
   if screen.IsColor then
     ANSI.SetColor(screen.Output^, color.FG, color.BG);
-end;
-
-procedure WriteBoxChar(var screen: TScreen; ch: TBoxChar);
-begin
-  if screen.ScreenType = stVT100 then
-  begin
-    { VT100 uses alternate character set for box drawing }
-    Write(screen.Output^, ch);
-  end
-  else
-    Write(screen.Output^, ch);
 end;
 
 procedure WriteText(var screen: TScreen; text: Str63);
@@ -485,31 +419,37 @@ var
   i, row, col: TInt;
 begin
   { Get appropriate box characters for terminal type }
-  chars := GetBoxChars(table.Screen.ScreenType, table.BorderType);
+  chars := UI.GetBoxChars(table.Screen.ScreenType, table.BorderType);
+
+  { Enable box drawing mode }
+  UI.EnableBoxDrawing(table.Screen);
 
   { Draw top border }
   MoveCursor(table.Screen, table.Box.Row, table.Box.Column);
   SetColor(table.Screen, table.BorderColor);
-  WriteBoxChar(table.Screen, chars.TopLeft);
+  UI.WriteBoxChar(table.Screen, chars.TopLeft);
   for i := 1 to table.Box.Width - 2 do
-    WriteBoxChar(table.Screen, chars.Horizontal);
-  WriteBoxChar(table.Screen, chars.TopRight);
+    UI.WriteBoxChar(table.Screen, chars.Horizontal);
+  UI.WriteBoxChar(table.Screen, chars.TopRight);
 
   { Draw side borders }
   for row := 1 to table.Box.Height - 2 do
   begin
     MoveCursor(table.Screen, table.Box.Row + row, table.Box.Column);
-    WriteBoxChar(table.Screen, chars.Vertical);
+    UI.WriteBoxChar(table.Screen, chars.Vertical);
     MoveCursor(table.Screen, table.Box.Row + row, table.Box.Column + table.Box.Width - 1);
-    WriteBoxChar(table.Screen, chars.Vertical);
+    UI.WriteBoxChar(table.Screen, chars.Vertical);
   end;
 
   { Draw bottom border }
   MoveCursor(table.Screen, table.Box.Row + table.Box.Height - 1, table.Box.Column);
-  WriteBoxChar(table.Screen, chars.BottomLeft);
+  UI.WriteBoxChar(table.Screen, chars.BottomLeft);
   for i := 1 to table.Box.Width - 2 do
-    WriteBoxChar(table.Screen, chars.Horizontal);
-  WriteBoxChar(table.Screen, chars.BottomRight);
+    UI.WriteBoxChar(table.Screen, chars.Horizontal);
+  UI.WriteBoxChar(table.Screen, chars.BottomRight);
+
+  { Disable box drawing mode }
+  UI.DisableBoxDrawing(table.Screen);
 end;
 
 procedure DrawTableHeader(var table: TTable);
@@ -522,7 +462,10 @@ var
   column: PTableColumn;
   formatted: Str63;
 begin
-  chars := GetBoxChars(table.Screen.ScreenType, table.BorderType);
+  chars := UI.GetBoxChars(table.Screen.ScreenType, table.BorderType);
+
+  { Enable box drawing mode }
+  UI.EnableBoxDrawing(table.Screen);
 
   { Position at header row }
   MoveCursor(table.Screen, table.Box.Row + 1, table.Box.Column + 1);
@@ -540,7 +483,7 @@ begin
     begin
       MoveCursor(table.Screen, table.Box.Row + 1, currentCol);
       SetColor(table.Screen, table.BorderColor);
-      WriteBoxChar(table.Screen, chars.Vertical);
+      UI.WriteBoxChar(table.Screen, chars.Vertical);
       Inc(currentCol);
     end;
 
@@ -555,7 +498,7 @@ begin
   { Draw header separator line }
   MoveCursor(table.Screen, table.Box.Row + 2, table.Box.Column);
   SetColor(table.Screen, table.BorderColor);
-  WriteBoxChar(table.Screen, chars.CenterLeft);
+  UI.WriteBoxChar(table.Screen, chars.CenterLeft);
 
   currentCol := table.Box.Column + 1;
   for i := 0 to table.VisibleColumns.Count - 1 do
@@ -564,18 +507,21 @@ begin
     if i > 0 then
     begin
       MoveCursor(table.Screen, table.Box.Row + 2, currentCol);
-      WriteBoxChar(table.Screen, chars.Center);
+      UI.WriteBoxChar(table.Screen, chars.Center);
       Inc(currentCol);
     end;
 
     { Draw horizontal line }
     for col := 1 to table.ColumnWidths[i] do
-      WriteBoxChar(table.Screen, chars.Horizontal);
+      UI.WriteBoxChar(table.Screen, chars.Horizontal);
     currentCol := currentCol + table.ColumnWidths[i];
   end;
 
   MoveCursor(table.Screen, table.Box.Row + 2, table.Box.Column + table.Box.Width - 1);
-  WriteBoxChar(table.Screen, chars.CenterRight);
+  UI.WriteBoxChar(table.Screen, chars.CenterRight);
+
+  { Disable box drawing mode }
+  UI.DisableBoxDrawing(table.Screen);
 end;
 
 procedure DrawTableRow(var table: TTable; row: PTableRow; rowPosition: TInt; rowIndex: TInt);
@@ -591,8 +537,11 @@ var
   formatted: Str63;
   rowColor: TColor;
 begin
-  chars := GetBoxChars(table.Screen.ScreenType, table.BorderType);
+  chars := UI.GetBoxChars(table.Screen.ScreenType, table.BorderType);
   rowColor := GetRowColor(table, rowIndex);
+
+  { Enable box drawing mode }
+  UI.EnableBoxDrawing(table.Screen);
 
   { Position at row }
   MoveCursor(table.Screen, table.Box.Row + rowPosition, table.Box.Column + 1);
@@ -609,7 +558,7 @@ begin
     begin
       MoveCursor(table.Screen, table.Box.Row + rowPosition, currentCol);
       SetColor(table.Screen, table.BorderColor);
-      WriteBoxChar(table.Screen, chars.Vertical);
+      UI.WriteBoxChar(table.Screen, chars.Vertical);
       Inc(currentCol);
     end;
 
@@ -632,6 +581,9 @@ begin
     WriteText(table.Screen, formatted);
     currentCol := currentCol + table.ColumnWidths[i];
   end;
+
+  { Disable box drawing mode }
+  UI.DisableBoxDrawing(table.Screen);
 end;
 
 procedure DrawTableEmptyRow(var table: TTable; rowPosition: TInt);
@@ -642,7 +594,10 @@ var
   chars: TBoxChars;
   i, col, colIdx, currentCol: TInt;
 begin
-  chars := GetBoxChars(table.Screen.ScreenType, table.BorderType);
+  chars := UI.GetBoxChars(table.Screen.ScreenType, table.BorderType);
+
+  { Enable box drawing mode }
+  UI.EnableBoxDrawing(table.Screen);
 
   { Position at row }
   MoveCursor(table.Screen, table.Box.Row + rowPosition, table.Box.Column + 1);
@@ -659,7 +614,7 @@ begin
     begin
       MoveCursor(table.Screen, table.Box.Row + rowPosition, currentCol);
       SetColor(table.Screen, table.BorderColor);
-      WriteBoxChar(table.Screen, chars.Vertical);
+      UI.WriteBoxChar(table.Screen, chars.Vertical);
       Inc(currentCol);
     end;
 
@@ -670,6 +625,9 @@ begin
       WriteText(table.Screen, ' ');
     currentCol := currentCol + table.ColumnWidths[i];
   end;
+
+  { Disable box drawing mode }
+  UI.DisableBoxDrawing(table.Screen);
 end;
 
 procedure DrawTableFooter(var table: TTable);
@@ -681,16 +639,22 @@ var
   i, row: TInt;
   statusMsg: Str63;
 begin
-  chars := GetBoxChars(table.Screen.ScreenType, table.BorderType);
+  chars := UI.GetBoxChars(table.Screen.ScreenType, table.BorderType);
   row := table.Box.Row + table.Box.Height - 1;
+
+  { Enable box drawing mode }
+  UI.EnableBoxDrawing(table.Screen);
 
   { Draw bottom border }
   MoveCursor(table.Screen, row, table.Box.Column);
   SetColor(table.Screen, table.BorderColor);
-  WriteBoxChar(table.Screen, chars.BottomLeft);
+  UI.WriteBoxChar(table.Screen, chars.BottomLeft);
   for i := 1 to table.Box.Width - 2 do
-    WriteBoxChar(table.Screen, chars.Horizontal);
-  WriteBoxChar(table.Screen, chars.BottomRight);
+    UI.WriteBoxChar(table.Screen, chars.Horizontal);
+  UI.WriteBoxChar(table.Screen, chars.BottomRight);
+
+  { Disable box drawing mode }
+  UI.DisableBoxDrawing(table.Screen);
 
   { TODO: Add status message if TotalRecords is known }
   { This will be implemented later to show "N of T Records" }

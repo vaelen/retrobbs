@@ -20,7 +20,6 @@ The `TScreenType` enum denotes the character set used for drawing characters.
 | stASCII  | Only use 7bit ASCII           |
 | stANSI   | CP437 - IBM PC                |
 | stVT100  | VT100 Alternate Character Set |
-| stUTF8   | Unicode drawing characters    |
 
 **Note: The ASCII and VT100 character sets only provide characters for drawing simple boxes. ANSI and Unicode provide double line boxes and shading.**
 
@@ -29,7 +28,7 @@ The `TBorderType` enum denotes the type of border to draw.
 | Value    | Description                            |
 | -------- | -------------------------------------- |
 | btSingle | Single line border                     |
-| btDouble | Double line border (ANSI/UTF8 only)    |
+| btDouble | Double line border (ANSI only)    |
 
 The `TScreen` type keeps track of information related to the screen.
 
@@ -184,7 +183,9 @@ VT100:
 
 **NOTE: To use the VT100 drawing characters, you must call SetSecondaryCharacterSet(output, csDrawing) first, then send SI (0x0E) before any drawing characters and SO (0x0F) afterwards.**
 
-UTF8:
+**NOTE: UTF-8 characters are listed here, but they are not used in the code at this time.**
+
+UTF-8:
 
 | Name         | Codepoint | Char Sequence  | C |
 | ------------ | --------- | -------------- | - |
@@ -197,22 +198,6 @@ UTF8:
 | BottomLeft   | U+2514    | 0xE2 0x94 0x94 | └ |
 | BottomCenter | U+2534    | 0xE2 0x94 0xB4 | ┴ |
 | BottomRight  | U+2518    | 0xE2 0x94 0x98 | ┘ |
-| Horizontal   | U+2500    | 0xE2 0x94 0x80 | ─ |
-| Vertical     | U+2502    | 0xE2 0x94 0x82 | │ |
-
-UTF8 (Rounded):
-
-| Name         | Codepoint | Char Sequence  | C |
-| ------------ | --------- | -------------- | - |
-| TopLeft      | U+256D    | 0xE2 0x95 0xAD | ╭ |
-| TopCenter    | U+252C    | 0xE2 0x94 0xAC | ┬ |
-| TopRight     | U+256E    | 0xE2 0x95 0xAE | ╮ |
-| CenterLeft   | U+251C    | 0xE2 0x94 0x9C | ├ |
-| Center       | U+253C    | 0xE2 0x94 0xBC | ┼ |
-| CenterRight  | U+2524    | 0xE2 0x94 0xA4 | ┤ |
-| BottomLeft   | U+2570    | 0xE2 0x95 0xB0 | ╰ |
-| BottomCenter | U+2534    | 0xE2 0x94 0xB4 | ┴ |
-| BottomRight  | U+256F    | 0xE2 0x95 0xAF | ╯ |
 | Horizontal   | U+2500    | 0xE2 0x94 0x80 | ─ |
 | Vertical     | U+2502    | 0xE2 0x94 0x82 | │ |
 

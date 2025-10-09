@@ -60,7 +60,6 @@ begin
   WriteLn('  0 = ASCII');
   WriteLn('  1 = ANSI (CP437)');
   WriteLn('  2 = VT100');
-  WriteLn('  3 = UTF8');
   Write('Enter screen type: ');
   ReadLn(screenTypeNum);
 
@@ -75,7 +74,6 @@ begin
     0: screen.ScreenType := stASCII;
     1: screen.ScreenType := stANSI;
     2: screen.ScreenType := stVT100;
-    3: screen.ScreenType := stUTF8;
   else
     screen.ScreenType := stASCII;
   end;

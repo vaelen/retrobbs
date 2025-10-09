@@ -27,59 +27,6 @@ uses
   {$ENDIF}
   ;
 
-{$IFDEF UNIX}
-{ Execute locale command and check for UTF-8 }
-function DetectUTF8: Boolean;
-var
-  localeOutput: AnsiString;
-  lcVar: String;
-begin
-  DetectUTF8 := False;
-  Exit;
-
-  { Try to execute 'locale' command }
-  localeOutput := '';
-
-  { Use RunCommand to execute locale }
-  if RunCommand('locale', [], localeOutput) then
-  begin
-    { Check if LC_CTYPE contains UTF-8 }
-    if (Pos('LC_CTYPE', localeOutput) > 0) and (Pos('UTF-8', localeOutput) > 0) then
-    begin
-      DetectUTF8 := True;
-      Exit;
-    end;
-  end;
-
-  { Fallback: Check environment variables for LC_* containing UTF-8 }
-  lcVar := GetEnvironmentVariable('LC_CTYPE');
-  if (lcVar <> '') and (Pos('UTF-8', UpperCase(lcVar)) > 0) then
-  begin
-    DetectUTF8 := True;
-    Exit;
-  end;
-
-  lcVar := GetEnvironmentVariable('LC_ALL');
-  if (lcVar <> '') and (Pos('UTF-8', UpperCase(lcVar)) > 0) then
-  begin
-    DetectUTF8 := True;
-    Exit;
-  end;
-
-  lcVar := GetEnvironmentVariable('LANG');
-  if (lcVar <> '') and (Pos('UTF-8', UpperCase(lcVar)) > 0) then
-  begin
-    DetectUTF8 := True;
-    Exit;
-  end;
-end;
-{$ELSE}
-function DetectUTF8: Boolean;
-begin
-  DetectUTF8 := False;
-end;
-{$ENDIF}
-
 { Query terminal size using ioctl TIOCGWINSZ }
 procedure QueryTerminalSize(var output: Text; var width, height: TInt);
 {$IFDEF UNIX}
@@ -129,16 +76,7 @@ begin
   screen.ScreenType := stANSI;
   {$ENDIF}
 
-  {$IFDEF UNIX}
-  { Detect UTF-8 support }
-  if DetectUTF8 then
-    screen.ScreenType := stUTF8
-  else
-    screen.ScreenType := stVT100;
-
-  { Query terminal size on UNIX systems }
   QueryTerminalSize(output, screen.Width, screen.Height);
-  {$ENDIF}
 
   { Clear screen }
   ClearScreen(output);

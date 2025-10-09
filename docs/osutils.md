@@ -9,7 +9,6 @@ The `InitializeScreen(var Screen, var Output)` procedure initializes a `TScreen`
 | OS    | Locale | ScreenType | Width x Height    |
 | ----- | ------ | ---------- | ----------------- |
 | DOS   |        | stANSI     | 80x25             |
-| UNIX  | UTF-8  | stUTF8     | ioctl (80x25)     |
 | UNIX  | Other  | stVT100    | ioctl (80x25)     |
 | Other |        | stVT100    | 80x25             |
 

@@ -27,14 +27,13 @@ type
   TScreenType = (
     stASCII,  { Only use 7bit ASCII }
     stANSI,   { CP437 - IBM PC }
-    stVT100,  { VT100 Alternate Character Set }
-    stUTF8    { Unicode drawing characters }
+    stVT100   { VT100 Alternate Character Set }
   );
 
   { TBorderType denotes the type of border to draw }
   TBorderType = (
     btSingle,   { Single line border }
-    btDouble    { Double line border (ANSI/UTF8 only) }
+    btDouble    { Double line border (ANSI only) }
   );
 
   { PText is a pointer to a Text file }
@@ -58,6 +57,24 @@ type
     Width: TInt;   { Width in characters }
   end;
 
+  { TBoxChar is a box drawing character }
+  TBoxChar = char;
+
+  { TBoxChars contains all box drawing characters for a character set }
+  TBoxChars = record
+    TopLeft: TBoxChar;
+    TopCenter: TBoxChar;
+    TopRight: TBoxChar;
+    CenterLeft: TBoxChar;
+    Center: TBoxChar;
+    CenterRight: TBoxChar;
+    BottomLeft: TBoxChar;
+    BottomCenter: TBoxChar;
+    BottomRight: TBoxChar;
+    Horizontal: TBoxChar;
+    Vertical: TBoxChar;
+  end;
+
 { Core Drawing Procedures }
 
 { ClearBox clears the screen within the given box }
@@ -75,25 +92,21 @@ function WriteHeader(var screen: TScreen; box: TBox; color: TColor; alignment: T
 { WriteFooter writes text on the box's last row and returns the number of characters displayed }
 function WriteFooter(var screen: TScreen; box: TBox; color: TColor; alignment: TAlignment; offsetR, offsetC: TInt; text: Str255): TInt;
 
+{ Box Drawing Helper Functions }
+
+{ Get appropriate box characters for screen type and border type }
+function GetBoxChars(screenType: TScreenType; borderType: TBorderType): TBoxChars;
+
+{ Write a single box drawing character }
+procedure WriteBoxChar(var screen: TScreen; ch: TBoxChar);
+
+{ Enable box drawing character set (VT100 shift-in, etc) }
+procedure EnableBoxDrawing(var screen: TScreen);
+
+{ Disable box drawing character set (VT100 shift-out, etc) }
+procedure DisableBoxDrawing(var screen: TScreen);
+
 implementation
-
-{ Box drawing character tables }
-type
-  TBoxChar = String[3];
-
-  TBoxChars = record
-    TopLeft: TBoxChar;
-    TopCenter: TBoxChar;
-    TopRight: TBoxChar;
-    CenterLeft: TBoxChar;
-    Center: TBoxChar;
-    CenterRight: TBoxChar;
-    BottomLeft: TBoxChar;
-    BottomCenter: TBoxChar;
-    BottomRight: TBoxChar;
-    Horizontal: TBoxChar;
-    Vertical: TBoxChar;
-  end;
 
 const
   { ASCII box drawing characters }
@@ -141,21 +154,6 @@ const
     Vertical: 'x'
   );
 
-  { UTF-8 box drawing characters (Unicode) }
-  UTF8BoxChars: TBoxChars = (
-    TopLeft: #$E2#$94#$8C;      { ┌ U+250C }
-    TopCenter: #$E2#$94#$AC;    { ┬ U+252C }
-    TopRight: #$E2#$94#$90;     { ┐ U+2510 }
-    CenterLeft: #$E2#$94#$9C;   { ├ U+251C }
-    Center: #$E2#$94#$BC;       { ┼ U+253C }
-    CenterRight: #$E2#$94#$A4;  { ┤ U+2524 }
-    BottomLeft: #$E2#$94#$94;   { └ U+2514 }
-    BottomCenter: #$E2#$94#$B4; { ┴ U+2534 }
-    BottomRight: #$E2#$94#$98;  { ┘ U+2518 }
-    Horizontal: #$E2#$94#$80;   { ─ U+2500 }
-    Vertical: #$E2#$94#$82      { │ U+2502 }
-  );
-
 { Helper function to get minimum of two integers }
 function Min(a, b: TInt): TInt;
 begin
@@ -163,6 +161,41 @@ begin
     Min := a
   else
     Min := b;
+end;
+
+{ Box Drawing Helper Functions }
+
+function GetBoxChars(screenType: TScreenType; borderType: TBorderType): TBoxChars;
+begin
+  { Select character set based on screen type }
+  { borderType currently only affects ANSI (future: double-line support) }
+  case screenType of
+    stASCII: GetBoxChars := ASCIIBoxChars;
+    stANSI: GetBoxChars := ANSIBoxChars;
+    stVT100: GetBoxChars := VT100BoxChars;
+  else
+    GetBoxChars := ASCIIBoxChars;  { Fallback }
+  end;
+end;
+
+procedure WriteBoxChar(var screen: TScreen; ch: TBoxChar);
+begin
+  Write(screen.Output^, ch);
+end;
+
+procedure EnableBoxDrawing(var screen: TScreen);
+begin
+  if screen.ScreenType = stVT100 then
+  begin
+    SetSecondaryCharacterSet(screen.Output^, csDrawing);
+    Write(screen.Output^, #$0E);  { SI - Shift In to G1 alternate character set }
+  end;
+end;
+
+procedure DisableBoxDrawing(var screen: TScreen);
+begin
+  if screen.ScreenType = stVT100 then
+    Write(screen.Output^, #$0F);  { SO - Shift Out to G0 normal character set }
 end;
 
 { ClearBox implementation }
@@ -210,7 +243,6 @@ begin
     stASCII: boxChars := ASCIIBoxChars;
     stANSI: boxChars := ANSIBoxChars;
     stVT100: boxChars := VT100BoxChars;
-    stUTF8: boxChars := UTF8BoxChars;
   end;
 
   { Set color }
