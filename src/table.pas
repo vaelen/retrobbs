@@ -296,6 +296,7 @@ begin
     begin
       { Distribute extra space among flexible columns }
       widthPerFlex := extraSpace div flexCount;
+      j := extraSpace mod flexCount;  { Remainder to distribute }
 
       for i := 0 to table.VisibleColumns.Count - 1 do
       begin
@@ -303,7 +304,15 @@ begin
         col := PTableColumn(GetArrayListItem(table.Columns, colIdx));
 
         if col^.MaxWidth = 0 then
-          table.ColumnWidths[i] := col^.MinWidth + widthPerFlex
+        begin
+          table.ColumnWidths[i] := col^.MinWidth + widthPerFlex;
+          { Add 1 extra to first j flexible columns to use up remainder }
+          if j > 0 then
+          begin
+            Inc(table.ColumnWidths[i]);
+            Dec(j);
+          end;
+        end
         else
           table.ColumnWidths[i] := col^.MinWidth;
       end;
@@ -311,6 +320,7 @@ begin
     else
     begin
       { No flexible columns - distribute proportionally }
+      j := 0;  { Track total distributed }
       for i := 0 to table.VisibleColumns.Count - 1 do
       begin
         colIdx := TInt(PtrUInt(GetArrayListItem(table.VisibleColumns, i)));
@@ -318,10 +328,26 @@ begin
 
         proportionalShare := (col^.MinWidth * extraSpace) div totalMinWidth;
         table.ColumnWidths[i] := col^.MinWidth + proportionalShare;
+        j := j + proportionalShare;
 
         { Respect MaxWidth if set }
         if (col^.MaxWidth > 0) and (table.ColumnWidths[i] > col^.MaxWidth) then
+        begin
+          j := j - (table.ColumnWidths[i] - col^.MaxWidth);
           table.ColumnWidths[i] := col^.MaxWidth;
+        end;
+      end;
+
+      { Add any remaining space to last column }
+      if (extraSpace > j) and (table.VisibleColumns.Count > 0) then
+      begin
+        i := table.VisibleColumns.Count - 1;
+        colIdx := TInt(PtrUInt(GetArrayListItem(table.VisibleColumns, i)));
+        col := PTableColumn(GetArrayListItem(table.Columns, colIdx));
+
+        { Add remainder if under MaxWidth }
+        if (col^.MaxWidth = 0) or (table.ColumnWidths[i] + (extraSpace - j) <= col^.MaxWidth) then
+          table.ColumnWidths[i] := table.ColumnWidths[i] + (extraSpace - j);
       end;
     end;
   end;
@@ -410,190 +436,127 @@ end;
 
 { Phase 6: Drawing Implementation }
 
-procedure DrawTableBorder(var table: TTable);
+procedure DrawTopBorder(var table: TTable; chars: TBoxChars);
 {
-  Draw the outer border of the table.
+  Draw the top border line with column junctions.
 }
 var
-  chars: TBoxChars;
-  i, row, col, currentCol: TInt;
+  i, col: TInt;
 begin
-  { Get appropriate box characters for terminal type }
-  chars := UI.GetBoxChars(table.Screen.ScreenType, table.BorderType);
-
-  { Enable box drawing mode }
   UI.EnableBoxDrawing(table.Screen);
-
-  { Draw top border with column junctions }
-  MoveCursor(table.Screen, table.Box.Row, table.Box.Column);
   SetColor(table.Screen, table.BorderColor);
+  UI.StartBoxDrawing(table.Screen);
   UI.WriteBoxChar(table.Screen, chars.TopLeft);
 
-  currentCol := table.Box.Column + 1;
   for i := 0 to table.VisibleColumns.Count - 1 do
   begin
     { Draw horizontal line for this column }
     for col := 1 to table.ColumnWidths[i] do
       UI.WriteBoxChar(table.Screen, chars.Horizontal);
-    currentCol := currentCol + table.ColumnWidths[i];
 
     { Draw junction or right corner }
     if i < table.VisibleColumns.Count - 1 then
-    begin
-      UI.WriteBoxChar(table.Screen, chars.TopCenter);
-      Inc(currentCol);
-    end
+      UI.WriteBoxChar(table.Screen, chars.TopCenter)
     else
       UI.WriteBoxChar(table.Screen, chars.TopRight);
   end;
 
-  { Draw side borders }
-  for row := 1 to table.Box.Height - 2 do
-  begin
-    MoveCursor(table.Screen, table.Box.Row + row, table.Box.Column);
-    UI.WriteBoxChar(table.Screen, chars.Vertical);
-    MoveCursor(table.Screen, table.Box.Row + row, table.Box.Column + table.Box.Width - 1);
-    UI.WriteBoxChar(table.Screen, chars.Vertical);
-  end;
-
-  { Draw bottom border with column junctions }
-  MoveCursor(table.Screen, table.Box.Row + table.Box.Height - 1, table.Box.Column);
-  UI.WriteBoxChar(table.Screen, chars.BottomLeft);
-
-  currentCol := table.Box.Column + 1;
-  for i := 0 to table.VisibleColumns.Count - 1 do
-  begin
-    { Draw horizontal line for this column }
-    for col := 1 to table.ColumnWidths[i] do
-      UI.WriteBoxChar(table.Screen, chars.Horizontal);
-    currentCol := currentCol + table.ColumnWidths[i];
-
-    { Draw junction or right corner }
-    if i < table.VisibleColumns.Count - 1 then
-    begin
-      UI.WriteBoxChar(table.Screen, chars.BottomCenter);
-      Inc(currentCol);
-    end
-    else
-      UI.WriteBoxChar(table.Screen, chars.BottomRight);
-  end;
-
-  { Disable box drawing mode }
-  UI.DisableBoxDrawing(table.Screen);
+  UI.StopBoxDrawing(table.Screen);
+  WriteLn(table.Screen.Output^);
 end;
 
-procedure DrawTableHeader(var table: TTable);
+procedure DrawHeaderLine(var table: TTable; chars: TBoxChars);
 {
   Draw the header row with column titles.
 }
 var
-  chars: TBoxChars;
-  i, col, colIdx, currentCol: TInt;
+  i, colIdx: TInt;
   column: PTableColumn;
   formatted: Str63;
 begin
-  chars := UI.GetBoxChars(table.Screen.ScreenType, table.BorderType);
-
-  { Phase 1: Draw borders and separators with box drawing enabled }
+  { Draw left border }
   UI.EnableBoxDrawing(table.Screen);
-
-  { Draw column separators }
-  currentCol := table.Box.Column + 1;
-  for i := 0 to table.VisibleColumns.Count - 1 do
-  begin
-    { Draw separator before column (except first) }
-    if i > 0 then
-    begin
-      MoveCursor(table.Screen, table.Box.Row + 1, currentCol);
-      SetColor(table.Screen, table.BorderColor);
-      UI.WriteBoxChar(table.Screen, chars.Vertical);
-      Inc(currentCol);
-    end;
-    currentCol := currentCol + table.ColumnWidths[i];
-  end;
-
-  { Draw header separator line }
-  MoveCursor(table.Screen, table.Box.Row + 2, table.Box.Column);
   SetColor(table.Screen, table.BorderColor);
-  UI.WriteBoxChar(table.Screen, chars.CenterLeft);
+  UI.StartBoxDrawing(table.Screen);
+  UI.WriteBoxChar(table.Screen, chars.Vertical);
+  UI.StopBoxDrawing(table.Screen);
 
-  currentCol := table.Box.Column + 1;
+  { Draw column headers }
   for i := 0 to table.VisibleColumns.Count - 1 do
   begin
-    { Draw separator junction (except first) }
-    if i > 0 then
-    begin
-      UI.WriteBoxChar(table.Screen, chars.Center);
-      Inc(currentCol);
-    end;
-
-    { Draw horizontal line }
-    for col := 1 to table.ColumnWidths[i] do
-      UI.WriteBoxChar(table.Screen, chars.Horizontal);
-    currentCol := currentCol + table.ColumnWidths[i];
-  end;
-
-  UI.WriteBoxChar(table.Screen, chars.CenterRight);
-
-  UI.DisableBoxDrawing(table.Screen);
-
-  { Phase 2: Draw header text with box drawing disabled }
-  currentCol := table.Box.Column + 1;
-  for i := 0 to table.VisibleColumns.Count - 1 do
-  begin
-    { Skip separator position (except first) }
-    if i > 0 then
-      Inc(currentCol);
-
     colIdx := TInt(PtrUInt(GetArrayListItem(table.VisibleColumns, i)));
     column := PTableColumn(GetArrayListItem(table.Columns, colIdx));
 
     { Draw column title (centered) }
     formatted := FormatCell(column^.Title, table.ColumnWidths[i], aCenter);
-    MoveCursor(table.Screen, table.Box.Row + 1, currentCol);
     SetColor(table.Screen, table.HeaderColor);
     WriteText(table.Screen, formatted);
-    currentCol := currentCol + table.ColumnWidths[i];
+
+    { Draw separator or right border }
+    SetColor(table.Screen, table.BorderColor);
+    UI.StartBoxDrawing(table.Screen);
+    UI.WriteBoxChar(table.Screen, chars.Vertical);
+    UI.StopBoxDrawing(table.Screen);
   end;
+
+  WriteLn(table.Screen.Output^);
 end;
 
-procedure DrawTableRow(var table: TTable; row: PTableRow; rowPosition: TInt; rowIndex: TInt);
+procedure DrawSeparatorLine(var table: TTable; chars: TBoxChars);
 {
-  Draw a single data row.
+  Draw the separator line between header and data rows.
 }
 var
-  chars: TBoxChars;
-  i, colIdx, currentCol: TInt;
+  i, col: TInt;
+begin
+  UI.EnableBoxDrawing(table.Screen);
+  SetColor(table.Screen, table.BorderColor);
+  UI.StartBoxDrawing(table.Screen);
+  UI.WriteBoxChar(table.Screen, chars.CenterLeft);
+
+  for i := 0 to table.VisibleColumns.Count - 1 do
+  begin
+    { Draw horizontal line }
+    for col := 1 to table.ColumnWidths[i] do
+      UI.WriteBoxChar(table.Screen, chars.Horizontal);
+
+    { Draw junction or right edge }
+    if i < table.VisibleColumns.Count - 1 then
+      UI.WriteBoxChar(table.Screen, chars.Center)
+    else
+      UI.WriteBoxChar(table.Screen, chars.CenterRight);
+  end;
+
+  UI.StopBoxDrawing(table.Screen);
+  WriteLn(table.Screen.Output^);
+end;
+
+procedure DrawDataLine(var table: TTable; chars: TBoxChars; row: PTableRow; rowIndex: TInt);
+{
+  Draw a single data row line.
+}
+var
+  i, colIdx: TInt;
   column: PTableColumn;
   cell: PTableCell;
   cellText: TTableCell;
   formatted: Str63;
   rowColor: TColor;
 begin
-  chars := UI.GetBoxChars(table.Screen.ScreenType, table.BorderType);
   rowColor := GetRowColor(table, rowIndex);
 
-  { Enable box drawing mode }
+  { Draw left border }
   UI.EnableBoxDrawing(table.Screen);
-
-  { Position at row }
-  MoveCursor(table.Screen, table.Box.Row + rowPosition, table.Box.Column + 1);
+  SetColor(table.Screen, table.BorderColor);
+  UI.StartBoxDrawing(table.Screen);
+  UI.WriteBoxChar(table.Screen, chars.Vertical);
+  UI.StopBoxDrawing(table.Screen);
 
   { Draw cells }
-  currentCol := table.Box.Column + 1;
   for i := 0 to table.VisibleColumns.Count - 1 do
   begin
     colIdx := TInt(PtrUInt(GetArrayListItem(table.VisibleColumns, i)));
     column := PTableColumn(GetArrayListItem(table.Columns, colIdx));
-
-    { Draw separator before column (except first) }
-    if i > 0 then
-    begin
-      MoveCursor(table.Screen, table.Box.Row + rowPosition, currentCol);
-      SetColor(table.Screen, table.BorderColor);
-      UI.WriteBoxChar(table.Screen, chars.Vertical);
-      Inc(currentCol);
-    end;
 
     { Get cell value }
     if colIdx < row^.Cells.Count then
@@ -609,88 +572,78 @@ begin
 
     { Format and draw cell }
     formatted := FormatCell(cellText, table.ColumnWidths[i], column^.Alignment);
-    MoveCursor(table.Screen, table.Box.Row + rowPosition, currentCol);
     SetColor(table.Screen, rowColor);
     WriteText(table.Screen, formatted);
-    currentCol := currentCol + table.ColumnWidths[i];
+
+    { Draw separator or right border }
+    SetColor(table.Screen, table.BorderColor);
+    UI.StartBoxDrawing(table.Screen);
+    UI.WriteBoxChar(table.Screen, chars.Vertical);
+    UI.StopBoxDrawing(table.Screen);
   end;
 
-  { Disable box drawing mode }
-  UI.DisableBoxDrawing(table.Screen);
+  WriteLn(table.Screen.Output^);
 end;
 
-procedure DrawTableEmptyRow(var table: TTable; rowPosition: TInt);
+procedure DrawEmptyLine(var table: TTable; chars: TBoxChars);
 {
-  Draw an empty row (when there are fewer data rows than visible rows).
+  Draw an empty row line (when there are fewer data rows than visible rows).
 }
 var
-  chars: TBoxChars;
-  i, col, colIdx, currentCol: TInt;
+  i, col: TInt;
 begin
-  chars := UI.GetBoxChars(table.Screen.ScreenType, table.BorderType);
-
-  { Enable box drawing mode }
+  { Draw left border }
   UI.EnableBoxDrawing(table.Screen);
-
-  { Position at row }
-  MoveCursor(table.Screen, table.Box.Row + rowPosition, table.Box.Column + 1);
-  SetColor(table.Screen, table.RowColor);
+  SetColor(table.Screen, table.BorderColor);
+  UI.StartBoxDrawing(table.Screen);
+  UI.WriteBoxChar(table.Screen, chars.Vertical);
+  UI.StopBoxDrawing(table.Screen);
 
   { Draw empty cells }
-  currentCol := table.Box.Column + 1;
+  SetColor(table.Screen, table.RowColor);
   for i := 0 to table.VisibleColumns.Count - 1 do
   begin
-    colIdx := TInt(PtrUInt(GetArrayListItem(table.VisibleColumns, i)));
-
-    { Draw separator before column (except first) }
-    if i > 0 then
-    begin
-      MoveCursor(table.Screen, table.Box.Row + rowPosition, currentCol);
-      SetColor(table.Screen, table.BorderColor);
-      UI.WriteBoxChar(table.Screen, chars.Vertical);
-      Inc(currentCol);
-    end;
-
     { Draw spaces }
-    MoveCursor(table.Screen, table.Box.Row + rowPosition, currentCol);
-    SetColor(table.Screen, table.RowColor);
     for col := 1 to table.ColumnWidths[i] do
       WriteText(table.Screen, ' ');
-    currentCol := currentCol + table.ColumnWidths[i];
+
+    { Draw separator or right border }
+    SetColor(table.Screen, table.BorderColor);
+    UI.StartBoxDrawing(table.Screen);
+    UI.WriteBoxChar(table.Screen, chars.Vertical);
+    UI.StopBoxDrawing(table.Screen);
   end;
 
-  { Disable box drawing mode }
-  UI.DisableBoxDrawing(table.Screen);
+  WriteLn(table.Screen.Output^);
 end;
 
-procedure DrawTableFooter(var table: TTable);
+procedure DrawBottomBorder(var table: TTable; chars: TBoxChars);
 {
-  Draw the bottom border with status message.
+  Draw the bottom border line with column junctions.
 }
 var
-  chars: TBoxChars;
-  i, row: TInt;
-  statusMsg: Str63;
+  i, col: TInt;
 begin
-  chars := UI.GetBoxChars(table.Screen.ScreenType, table.BorderType);
-  row := table.Box.Row + table.Box.Height - 1;
-
-  { Enable box drawing mode }
   UI.EnableBoxDrawing(table.Screen);
-
-  { Draw bottom border }
-  MoveCursor(table.Screen, row, table.Box.Column);
   SetColor(table.Screen, table.BorderColor);
+  UI.StartBoxDrawing(table.Screen);
   UI.WriteBoxChar(table.Screen, chars.BottomLeft);
-  for i := 1 to table.Box.Width - 2 do
-    UI.WriteBoxChar(table.Screen, chars.Horizontal);
-  UI.WriteBoxChar(table.Screen, chars.BottomRight);
 
-  { Disable box drawing mode }
-  UI.DisableBoxDrawing(table.Screen);
+  for i := 0 to table.VisibleColumns.Count - 1 do
+  begin
+    { Draw horizontal line for this column }
+    for col := 1 to table.ColumnWidths[i] do
+      UI.WriteBoxChar(table.Screen, chars.Horizontal);
 
-  { TODO: Add status message if TotalRecords is known }
-  { This will be implemented later to show "N of T Records" }
+    { Draw junction or right corner }
+    if i < table.VisibleColumns.Count - 1 then
+      UI.WriteBoxChar(table.Screen, chars.BottomCenter)
+    else
+      UI.WriteBoxChar(table.Screen, chars.BottomRight);
+  end;
+
+  UI.StopBoxDrawing(table.Screen);
+  WriteLn(table.Screen.Output^);
 end;
 
 { Initialization and Cleanup }
@@ -846,22 +799,38 @@ end;
 
 procedure DrawTable(var table: TTable);
 var
-  i, rowPosition, rowIndex: TInt;
+  i, rowIndex: TInt;
   row: PTableRow;
+  chars: TBoxChars;
 begin
   { Calculate layout }
   table.VisibleRows := CalculateVisibleRows(table);
   CalculateColumnWidths(table);
 
-  { Draw border }
-  DrawTableBorder(table);
+  { Get box drawing characters }
+  chars := UI.GetBoxChars(table.Screen.ScreenType, table.BorderType);
 
-  { Draw header if we have columns }
+  { Clear screen and position cursor at top-left (only if ANSI supported) }
+  if table.Screen.IsANSI then
+  begin
+    ANSI.ClearScreen(table.Screen.Output^);
+    MoveCursor(table.Screen, table.Box.Row, table.Box.Column);
+  end;
+
+  { Draw table sequentially from top to bottom without cursor repositioning }
+
+  { 1. Top border }
+  DrawTopBorder(table, chars);
+
+  { 2. Header row (if we have columns) }
   if table.VisibleColumns.Count > 0 then
-    DrawTableHeader(table);
+    DrawHeaderLine(table, chars);
 
-  { Draw data rows }
-  rowPosition := 3; { Start after header }
+  { 3. Separator line }
+  if table.VisibleColumns.Count > 0 then
+    DrawSeparatorLine(table, chars);
+
+  { 4. Data rows }
   for i := 0 to table.VisibleRows - 1 do
   begin
     if i < table.Rows.Count then
@@ -869,18 +838,17 @@ begin
       { Draw data row }
       row := PTableRow(GetArrayListItem(table.Rows, i));
       rowIndex := table.TopIndex + i;
-      DrawTableRow(table, row, rowPosition, rowIndex);
+      DrawDataLine(table, chars, row, rowIndex);
     end
     else
     begin
       { Draw empty row }
-      DrawTableEmptyRow(table, rowPosition);
+      DrawEmptyLine(table, chars);
     end;
-    Inc(rowPosition);
   end;
 
-  { Draw footer }
-  DrawTableFooter(table);
+  { 5. Bottom border }
+  DrawBottomBorder(table, chars);
 
   table.NeedsRedraw := False;
 end;

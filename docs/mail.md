@@ -1,0 +1,3 @@
+# Mail Handling Library
+
+The `Mail` unit handles storage of local mail. Messages are stored on disk as files, one message per file in standard "Internet Mail" format ([RFC-822](rfc/rfc822.txt)). Each user has their own mail directory in `mail/<USER>`. To make it faster to list and search through messages, there is also a `MAIL` database (using the `DB` unit). Each record in this database contains a user ID, a message ID, message header fields, and the name of the file that contains the full message text.

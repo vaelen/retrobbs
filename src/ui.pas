@@ -15,6 +15,10 @@ interface
 uses
   ANSI, BBSTypes, Colors;
 
+const
+  SI = #$0E;
+  SO = #$0F;
+
 type
   { TAlignment lists possible text alignments }
   TAlignment = (
@@ -75,13 +79,19 @@ type
     Vertical: TBoxChar;
   end;
 
+  { TBoxContentCallback - Callback function for providing box content }
+  { Parameters: row (1-based, relative to box interior), var text, var alignment }
+  { Returns: True if content provided, False if row should be empty }
+  TBoxContentCallback = function(row: TInt; var text: Str255; var alignment: TAlignment): Boolean;
+
 { Core Drawing Procedures }
 
 { ClearBox clears the screen within the given box }
 procedure ClearBox(var screen: TScreen; box: TBox; color: TColor);
 
-{ DrawBox draws a border around the given box }
-procedure DrawBox(var screen: TScreen; box: TBox; borderType: TBorderType; color: TColor);
+{ DrawBox draws a border around the given box with optional content }
+{ contentCallback can be nil for empty box, or provide content for each row }
+procedure DrawBox(var screen: TScreen; box: TBox; borderType: TBorderType; color: TColor; contentCallback: TBoxContentCallback);
 
 { WriteText writes text into a box and returns the number of characters displayed }
 function WriteText(var screen: TScreen; box: TBox; color: TColor; alignment: TAlignment; offsetR, offsetC: TInt; text: Str255): TInt;
@@ -103,8 +113,11 @@ procedure WriteBoxChar(var screen: TScreen; ch: TBoxChar);
 { Enable box drawing character set (VT100 shift-in, etc) }
 procedure EnableBoxDrawing(var screen: TScreen);
 
-{ Disable box drawing character set (VT100 shift-out, etc) }
-procedure DisableBoxDrawing(var screen: TScreen);
+{ Start drawing box characters in VT100 }
+procedure StartBoxDrawing(var screen: TScreen);
+
+{ Stop drawing box characters in VT100 }
+procedure StopBoxDrawing(var screen: TScreen);
 
 implementation
 
@@ -188,14 +201,19 @@ begin
   if screen.ScreenType = stVT100 then
   begin
     SetSecondaryCharacterSet(screen.Output^, csDrawing);
-    Write(screen.Output^, #$0E);  { SI - Shift In to G1 alternate character set }
   end;
 end;
 
-procedure DisableBoxDrawing(var screen: TScreen);
+procedure StartBoxDrawing(var screen: TScreen);
 begin
   if screen.ScreenType = stVT100 then
-    Write(screen.Output^, #$0F);  { SO - Shift Out to G0 normal character set }
+    Write(screen.Output^, SI);  { SI - Shift In to G1 alternate character set }
+end;
+
+procedure StopBoxDrawing(var screen: TScreen);
+begin
+  if screen.ScreenType = stVT100 then
+    Write(screen.Output^, SO);  { SO - Shift Out to G0 normal character set }
 end;
 
 { ClearBox implementation }
@@ -205,6 +223,8 @@ var
   output: PText;
   i, j: TInt;
 begin
+  { This procedure only makes sense if we support ANSI escape codes }
+  if not screen.isANSI then Exit;
   row := box.Row;
   column := box.Column;
   height := Min(box.Height, screen.Height - row + 1);
@@ -225,17 +245,21 @@ begin
 end;
 
 { DrawBox implementation }
-procedure DrawBox(var screen: TScreen; box: TBox; borderType: TBorderType; color: TColor);
+procedure DrawBox(var screen: TScreen; box: TBox; borderType: TBorderType; color: TColor; contentCallback: TBoxContentCallback);
 var
-  row, column, height, width: TInt;
+  row, column, height, width, contentWidth: TInt;
   output: PText;
-  i: TInt;
+  i, j, textLen, padLeft, padRight: TInt;
   boxChars: TBoxChars;
+  text: Str255;
+  alignment: TAlignment;
+  hasContent: Boolean;
 begin
   row := box.Row;
   column := box.Column;
   height := Min(box.Height, screen.Height - row + 1);
   width := Min(box.Width, screen.Width - column + 1);
+  contentWidth := width - 2;  { Width available for content (excluding borders) }
   output := screen.Output;
 
   { Select appropriate box drawing character set }
@@ -249,41 +273,119 @@ begin
   if screen.IsColor then
     SetColor(output^, color.FG, color.BG);
 
-  { Move to start position }
-  CursorPosition(output^, row, column);
+  { Move to start position (only if ANSI is supported) }
+  if screen.IsANSI then
+    CursorPosition(output^, row, column);
 
   { Enable VT100 alternate character set if needed }
-  if screen.ScreenType = stVT100 then
-  begin
-    SetSecondaryCharacterSet(output^, csDrawing);
-    Write(output^, #$0E);  { SI - Shift In to G1 alternate character set }
-  end;
+  EnableBoxDrawing(screen);
 
   { Draw top line }
+  StartBoxDrawing(screen);
   Write(output^, boxChars.TopLeft);
   for i := 1 to width - 2 do
     Write(output^, boxChars.Horizontal);
   Write(output^, boxChars.TopRight);
+  if not screen.IsANSI then
+    WriteLn(output^);
 
-  { Draw side lines }
+  { Disable box drawing for content }
+  StopBoxDrawing(screen);
+
+  { Draw content lines }
   for i := 1 to height - 2 do
   begin
-    CursorPosition(output^, row + i, column);
+    { Position cursor at start of line if ANSI supported }
+    if screen.IsANSI then
+      CursorPosition(output^, row + i, column);
+
+    { Enable box drawing for left border }
+    StartBoxDrawing(screen);
     Write(output^, boxChars.Vertical);
-    CursorPosition(output^, row + i, column + width - 1);
+    StopBoxDrawing(screen);
+
+    { Get content for this row if callback provided }
+    hasContent := False;
+    if Assigned(contentCallback) then
+      hasContent := contentCallback(i, text, alignment);
+
+    if hasContent then
+    begin
+      { Trim text to fit within content width }
+      textLen := Length(text);
+      if textLen > contentWidth then
+      begin
+        text := Copy(text, 1, contentWidth);
+        textLen := contentWidth;
+      end;
+
+      { Calculate padding based on alignment }
+      case alignment of
+        aLeft:
+          begin
+            padLeft := 0;
+            padRight := contentWidth - textLen;
+          end;
+        aRight:
+          begin
+            padLeft := contentWidth - textLen;
+            padRight := 0;
+          end;
+        aCenter:
+          begin
+            padLeft := (contentWidth - textLen) div 2;
+            padRight := contentWidth - textLen - padLeft;
+          end;
+      else
+        begin
+          padLeft := 0;
+          padRight := contentWidth - textLen;
+        end;
+      end;
+
+      { Write left padding }
+      for j := 1 to padLeft do
+        Write(output^, ' ');
+
+      { Write content text }
+      Write(output^, text);
+
+      { Write right padding }
+      for j := 1 to padRight do
+        Write(output^, ' ');
+    end
+    else
+    begin
+      { No content - fill with spaces }
+      for j := 1 to contentWidth do
+        Write(output^, ' ');
+    end;
+
+    { Enable box drawing for right border }
+    StartBoxDrawing(screen);
     Write(output^, boxChars.Vertical);
+    StopBoxDrawing(screen);
+    if not screen.IsANSI then
+      WriteLn(output^);
   end;
 
+  { Position cursor for bottom line if ANSI supported }
+  if screen.IsANSI then
+    CursorPosition(output^, row + height - 1, column);
+
+  { Enable box drawing for bottom line }
+  StartBoxDrawing(screen);
+
   { Draw bottom line }
-  CursorPosition(output^, row + height - 1, column);
   Write(output^, boxChars.BottomLeft);
   for i := 1 to width - 2 do
     Write(output^, boxChars.Horizontal);
   Write(output^, boxChars.BottomRight);
+  if not screen.IsANSI then
+    WriteLn(output^);
 
   { Disable VT100 alternate character set if needed }
-  if screen.ScreenType = stVT100 then
-    Write(output^, #$0F);  { SO - Shift Out to G0 normal character set }
+  StopBoxDrawing(screen);
 end;
 
 { WriteText implementation }
@@ -354,7 +456,8 @@ begin
     end;
 
     { Move cursor to position }
-    CursorPosition(output^, currentRow, startColumn);
+    if screen.isANSI then
+      CursorPosition(output^, currentRow, startColumn);
 
     { Write this line of text }
     Write(output^, lineText);

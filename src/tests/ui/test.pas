@@ -11,6 +11,9 @@ program UITest;
   - WriteFooter
   - Text wrapping
   - OffsetR and OffsetC parameters
+
+  Copyright 2025, Andrew C. Young <andrew@vaelen.org>
+  MIT License
 }
 
 uses
@@ -47,7 +50,7 @@ begin
   color.BG := 4;   { Blue }
 
   ClearBox(screen, box, color);
-  DrawBox(screen, box, btSingle, color);
+  DrawBox(screen, box, btSingle, color, nil);
 
   { Test 2: Write text with different alignments }
   WriteLn;
@@ -84,7 +87,7 @@ begin
   color.BG := 1;   { Red }
 
   ClearBox(screen, box, color);
-  DrawBox(screen, box, btSingle, color);
+  DrawBox(screen, box, btSingle, color, nil);
 
   box.Row := 17;
   box.Column := 6;
@@ -104,7 +107,7 @@ begin
   color.BG := 2;   { Green }
 
   ClearBox(screen, box, color);
-  DrawBox(screen, box, btSingle, color);
+  DrawBox(screen, box, btSingle, color, nil);
 
   { Write header }
   color.FG := 14;  { Yellow }
@@ -132,7 +135,7 @@ begin
   color.BG := 5;   { Magenta }
 
   ClearBox(screen, box, color);
-  DrawBox(screen, box, btSingle, color);
+  DrawBox(screen, box, btSingle, color, nil);
 
   { Write header }
   color.FG := 14;  { Yellow }
@@ -171,7 +174,7 @@ begin
   color.BG := 4;   { Blue }
 
   ClearBox(screen, box, color);
-  DrawBox(screen, box, btSingle, color);
+  DrawBox(screen, box, btSingle, color, nil);
 
   { Write header }
   color.FG := 14;  { Yellow }
@@ -231,7 +234,7 @@ begin
   color.BG := 4;
 
   ClearBox(screen, box, color);
-  DrawBox(screen, box, btSingle, color);
+  DrawBox(screen, box, btSingle, color, nil);
 
   color.FG := 14;
   WriteLn('Header returned: ', WriteHeader(screen, box, color, aCenter, 0, 0, ' Return Value Test '));

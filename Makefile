@@ -97,7 +97,7 @@ SHA1_OUTPUT = $(UTIL_BIN_DIR)/sha1
 USERADM_OUTPUT = $(UTIL_BIN_DIR)/useradm
 
 # Default target
-all: $(OUTPUT)
+all: $(OUTPUT) utils demo test
 
 # Create bin directory if it doesn't exist
 $(BIN_DIR):
@@ -116,6 +116,8 @@ $(UTIL_BIN_DIR):
 	mkdir -p $(UTIL_BIN_DIR)
 
 # Build the main program
+bin: $(OUTPUT)
+
 $(OUTPUT): $(MAIN_SRC) $(ANSI_UNIT) | $(BIN_DIR)
 	$(FPC) $(FPCFLAGS) -o$(OUTPUT) $(MAIN_SRC)
 
@@ -241,8 +243,12 @@ $(SHA1_OUTPUT): $(SHA1_SRC) $(HASH_UNIT) | $(UTIL_BIN_DIR)
 $(USERADM_OUTPUT): $(USERADM_SRC) $(USER_UNIT) $(TABLE_UNIT) $(UI_UNIT) $(ANSI_UNIT) $(COLORS_UNIT) $(LISTS_UNIT) $(DB_UNIT) $(BTREE_UNIT) $(HASH_UNIT) $(BBSTYPES_UNIT) | $(UTIL_BIN_DIR)
 	$(FPC) $(FPCFLAGS) -o$(USERADM_OUTPUT) $(USERADM_SRC)
 
-# Build test programs
-test: $(ANSI_TEST_OUTPUT) $(HASH_TEST_OUTPUT) $(TYPE_TEST_OUTPUT) $(USER_TEST_OUTPUT) $(BTREE_TEST_OUTPUT) $(PATH_TEST_OUTPUT) $(UI_TEST_OUTPUT) $(DB_TEST_OUTPUT) $(LISTS_ARRAYLIST_TEST_OUTPUT) $(LISTS_LINKEDL_TEST_OUTPUT) $(TABLE_TEST_OUTPUT) $(ALL_TESTS_OUTPUT)
+# Build and run all test programs
+test: tests
+	$(ALL_TESTS_OUTPUT)
+
+# Build all test programs
+tests: $(ANSI_TEST_OUTPUT) $(HASH_TEST_OUTPUT) $(TYPE_TEST_OUTPUT) $(USER_TEST_OUTPUT) $(BTREE_TEST_OUTPUT) $(PATH_TEST_OUTPUT) $(UI_TEST_OUTPUT) $(DB_TEST_OUTPUT) $(DB_SIMPLE_OUTPUT) $(DB_SIZE_OUTPUT) $(DB_MINIMAL_OUTPUT) $(DB_ALL_OUTPUT) $(LISTS_ARRAYLIST_TEST_OUTPUT) $(LISTS_LINKEDL_TEST_OUTPUT) $(LISTS_ALL_OUTPUT) $(TABLE_TEST_OUTPUT) $(ALL_TESTS_OUTPUT)
 
 # Build all Path test programs
 test-path: $(PATH_TEST_OUTPUT)
@@ -295,4 +301,4 @@ run-test: $(TEST_OUTPUT)
 run-demo: $(ANSI_DEMO_OUTPUT)
 	$(ANSI_DEMO_OUTPUT)
 
-.PHONY: all test test-path test-db test-lists test-table demo utils clean distclean run run-test run-demo
+.PHONY: all bin test tests test-path test-db test-lists test-table demo utils clean distclean run run-test run-demo

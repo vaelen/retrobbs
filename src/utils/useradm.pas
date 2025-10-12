@@ -137,32 +137,41 @@ begin
   statusBox.Height := STATUS_HEIGHT;
 end;
 
+{ Callback function for status bar content }
+function StatusBarContent(row: TInt; var text: Str255; var alignment: TAlignment): Boolean;
+var
+  hasUsers: Boolean;
+begin
+  { Only provide content for row 1 }
+  if row = 1 then
+  begin
+    { Check if there are any users }
+    hasUsers := (totalUsers > 0);
+
+    { Build command text based on state }
+    if hasUsers then
+      text := ' Ins-Add  Del-Delete  Enter-View  '#$18'/K-Prev  '#$19'/J-Next  /-Search  Esc/Q-Quit'
+    else
+      text := ' Ins-Add  Esc/Q-Quit';
+
+    alignment := aLeft;
+    StatusBarContent := True;
+  end
+  else
+    StatusBarContent := False;
+end;
+
 { Draw the status bar }
 procedure DrawStatusBar;
 var
-  commandText: Str255;
-  hasUsers: Boolean;
   statusColor: TColor;
 begin
-  { Check if there are any users }
-  hasUsers := (totalUsers > 0);
-
-  { Build command text based on state }
-  if hasUsers then
-    commandText := 'Ins-Add  Del-Delete  Enter-View  '#$18'/K-Prev  '#$19'/J-Next  /-Search  Esc/Q-Quit'
-  else
-    commandText := 'Ins-Add  Esc/Q-Quit';
-
   { Create status bar color (white on black) }
   statusColor.FG := 7;  { White }
   statusColor.BG := 0;  { Black }
 
-  { Draw box around status text }
-  DrawBox(screen, statusBox, btSingle, statusColor);
-
-  { Position cursor inside box and write text }
-  CursorPosition(Output, statusBox.Row + 1, statusBox.Column + 2);
-  Write(commandText);
+  { Draw box with content using callback }
+  DrawBox(screen, statusBox, btSingle, statusColor, StatusBarContent);
 end;
 
 { Cleanup and free resources }
@@ -236,8 +245,6 @@ begin
 
   { Main event loop - minimal for Phase 3 testing }
   { Wait for any key press }
-  WriteLn;
-  WriteLn('Press any key to exit...');
   ReadKey;
 
   { Cleanup }

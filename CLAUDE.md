@@ -273,6 +273,67 @@ All planned features are currently marked as unchecked/in progress in the README
 - [ ] Single-threaded application
 - [ ] Avoids Object Pascal syntax for maximum portability
 
+## Code Standards
+
+### Copyright Headers
+
+**All source code files (`.pas` files) MUST include a copyright header** with the following format:
+
+```pascal
+{
+  <File Description>
+
+  Copyright 2025, Andrew C. Young <andrew@vaelen.org>
+  MIT License
+}
+```
+
+Place this header immediately after the `unit` or `program` declaration. The description should be concise and explain the purpose of the file.
+
+### Makefile Maintenance
+
+**CRITICAL**: When adding new source files, the [Makefile](Makefile) MUST be updated immediately to include:
+
+1. **Source file variables** (e.g., `NEW_UNIT_SRC`, `NEW_TEST_SRC`, `NEW_UTIL_SRC`)
+2. **Output binary variables** (e.g., `NEW_UNIT_OUTPUT`, `NEW_TEST_OUTPUT`)
+3. **Binary directory variables** if creating a new test unit (e.g., `NEW_TEST_BIN_DIR`)
+4. **Directory creation rules** if needed (e.g., `$(NEW_TEST_BIN_DIR): mkdir -p ...`)
+5. **Build rules** for the new files with proper dependencies
+6. **Aggregate target updates**:
+   - Add tests to `tests` target (line ~251)
+   - Add utilities to `utils` target (line ~269)
+   - Add demos to `demo` target (line ~266)
+   - Add unit-specific test suites to appropriate `test-<unit>` targets
+7. **PHONY declaration** updates if adding new phony targets (line ~304)
+
+**Example**: When adding a new utility `bin/utils/newtool`:
+```makefile
+# Add source variable
+NEWTOOL_SRC = $(UTIL_DIR)/newtool.pas
+
+# Add output variable
+NEWTOOL_OUTPUT = $(UTIL_BIN_DIR)/newtool
+
+# Add build rule
+$(NEWTOOL_OUTPUT): $(NEWTOOL_SRC) $(DEPENDENCY_UNITS) | $(UTIL_BIN_DIR)
+	$(FPC) $(FPCFLAGS) -o$(NEWTOOL_OUTPUT) $(NEWTOOL_SRC)
+
+# Update utils target to include $(NEWTOOL_OUTPUT)
+utils: $(CRC16_OUTPUT) $(CRC16X_OUTPUT) ... $(NEWTOOL_OUTPUT)
+```
+
+### Documentation Maintenance
+
+**When adding new features or modules, documentation MUST be updated**:
+
+1. **Unit documentation**: Create or update `docs/<unit>.md` for new units
+2. **CLAUDE.md**: Update this file if adding new patterns, conventions, or build targets
+3. **README.md**: Update to reflect new capabilities or completed features
+4. **Test documentation**: Add `src/tests/<unit>/README.md` for new test suites
+5. **Build commands**: Update the "Build Commands" section if adding new make targets
+
+**Documentation is not optional** - it ensures maintainability and helps future development.
+
 ## License
 
 MIT License - Copyright 2025, Andrew C. Young <andrew@vaelen.org>
