@@ -117,6 +117,36 @@ begin
   GetWord := result;
 end;
 
+{ Callback function for DrawBox header }
+function RenderHeader(var text: Str255; var headerColor: TColor; var alignment: TAlignment; var offset: TInt): Boolean;
+begin
+  if Length(title) > 0 then
+  begin
+    text := title;
+    headerColor := color;
+    alignment := aCenter;
+    offset := 0;
+    RenderHeader := True;
+  end
+  else
+    RenderHeader := False;
+end;
+
+{ Callback function for DrawBox footer }
+function RenderFooter(var text: Str255; var footerColor: TColor; var alignment: TAlignment; var offset: TInt): Boolean;
+begin
+  if boxContext.CharsDisplayed > 0 then
+  begin
+    text := IntToStr(boxContext.CharsDisplayed) + ' of ' + IntToStr(boxContext.Paragraph^.Length);
+    footerColor := color;
+    alignment := aRight;
+    offset := 2;
+    RenderFooter := True;
+  end
+  else
+    RenderFooter := False;
+end;
+
 { Callback function for DrawBox to render word-wrapped paragraph text }
 function RenderParagraphLine(row: TInt; var text: Str255; var alignment: TAlignment): Boolean;
 var
@@ -290,17 +320,8 @@ begin
     { Clear box with opaque background }
     ClearBox(screen, box, color);
 
-    { Draw box with content using callback }
-    DrawBox(screen, box, btSingle, color, RenderParagraphLine);
-
-    { Write centered title on border }
-    if Length(title) > 0 then
-      WriteHeader(screen, box, color, aCenter, 0, 0, title);
-
-    { Write footer showing chars displayed }
-    if boxContext.CharsDisplayed > 0 then
-      WriteFooter(screen, box, color, aRight, 0, -2,
-                  IntToStr(boxContext.CharsDisplayed) + ' of ' + IntToStr(para^.Length));
+    { Draw box with content, header, and footer using callbacks }
+    DrawBox(screen, box, btSingle, color, RenderParagraphLine, RenderHeader, RenderFooter);
   end;
 
   { Cleanup: Free all paragraphs }

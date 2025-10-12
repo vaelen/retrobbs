@@ -171,7 +171,7 @@ begin
   statusColor.BG := 0;  { Black }
 
   { Draw box with content using callback }
-  DrawBox(screen, statusBox, btSingle, statusColor, StatusBarContent);
+  DrawBox(screen, statusBox, btSingle, statusColor, StatusBarContent, nil, nil);
 end;
 
 { Cleanup and free resources }

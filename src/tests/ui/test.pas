@@ -5,12 +5,11 @@ program UITest;
 
   Tests the basic functionality of the UI unit including:
   - ClearBox
-  - DrawBox
+  - DrawBox with header/footer callbacks
   - WriteText
-  - WriteHeader
-  - WriteFooter
   - Text wrapping
   - OffsetR and OffsetC parameters
+  - Header/footer alignment and offset
 
   Copyright 2025, Andrew C. Young <andrew@vaelen.org>
   MIT License
@@ -23,6 +22,40 @@ var
   screen: TScreen;
   box: TBox;
   color: TColor;
+  headerText, footerText: Str255;
+  headerColor, footerColor: TColor;
+  headerAlign, footerAlign: TAlignment;
+  headerOffset, footerOffset: TInt;
+
+{ Header callback for tests }
+function TestHeader(var text: Str255; var hColor: TColor; var alignment: TAlignment; var offset: TInt): Boolean;
+begin
+  if Length(headerText) > 0 then
+  begin
+    text := headerText;
+    hColor := headerColor;
+    alignment := headerAlign;
+    offset := headerOffset;
+    TestHeader := True;
+  end
+  else
+    TestHeader := False;
+end;
+
+{ Footer callback for tests }
+function TestFooter(var text: Str255; var fColor: TColor; var alignment: TAlignment; var offset: TInt): Boolean;
+begin
+  if Length(footerText) > 0 then
+  begin
+    text := footerText;
+    fColor := footerColor;
+    alignment := footerAlign;
+    offset := footerOffset;
+    TestFooter := True;
+  end
+  else
+    TestFooter := False;
+end;
 
 begin
   WriteLn('UI Unit Test');
@@ -50,7 +83,7 @@ begin
   color.BG := 4;   { Blue }
 
   ClearBox(screen, box, color);
-  DrawBox(screen, box, btSingle, color, nil);
+  DrawBox(screen, box, btSingle, color, nil, nil, nil);
 
   { Test 2: Write text with different alignments }
   WriteLn;
@@ -87,7 +120,7 @@ begin
   color.BG := 1;   { Red }
 
   ClearBox(screen, box, color);
-  DrawBox(screen, box, btSingle, color, nil);
+  DrawBox(screen, box, btSingle, color, nil, nil, nil);
 
   box.Row := 17;
   box.Column := 6;
@@ -95,9 +128,9 @@ begin
   color.FG := 14;  { Yellow }
   WriteText(screen, box, color, aCenter, 0, 0, 'ASCII box characters');
 
-  { Test 4: WriteHeader and WriteFooter }
+  { Test 4: Header and Footer with DrawBox callbacks }
   WriteLn;
-  WriteLn('Test 4: WriteHeader and WriteFooter');
+  WriteLn('Test 4: Header and Footer with DrawBox callbacks');
   screen.ScreenType := stANSI;
   box.Row := 3;
   box.Column := 50;
@@ -106,16 +139,22 @@ begin
   color.FG := 15;  { White }
   color.BG := 2;   { Green }
 
+  { Setup header }
+  headerText := ' Test Box ';
+  headerColor.FG := 14;  { Yellow }
+  headerColor.BG := 2;   { Green }
+  headerAlign := aCenter;
+  headerOffset := 0;
+
+  { Setup footer }
+  footerText := ' Footer ';
+  footerColor.FG := 11;  { Bright Cyan }
+  footerColor.BG := 2;   { Green }
+  footerAlign := aCenter;
+  footerOffset := 0;
+
   ClearBox(screen, box, color);
-  DrawBox(screen, box, btSingle, color, nil);
-
-  { Write header }
-  color.FG := 14;  { Yellow }
-  WriteHeader(screen, box, color, aCenter, 0, 0, ' Test Box ');
-
-  { Write footer }
-  color.FG := 11;  { Bright Cyan }
-  WriteFooter(screen, box, color, aCenter, 0, 0, ' Footer ');
+  DrawBox(screen, box, btSingle, color, nil, TestHeader, TestFooter);
 
   { Write some content in the middle }
   box.Row := 7;
@@ -134,12 +173,18 @@ begin
   color.FG := 15;  { White }
   color.BG := 5;   { Magenta }
 
-  ClearBox(screen, box, color);
-  DrawBox(screen, box, btSingle, color, nil);
+  { Setup header }
+  headerText := ' Wrapping ';
+  headerColor.FG := 14;  { Yellow }
+  headerColor.BG := 5;   { Magenta }
+  headerAlign := aCenter;
+  headerOffset := 0;
 
-  { Write header }
-  color.FG := 14;  { Yellow }
-  WriteHeader(screen, box, color, aCenter, 0, 0, ' Wrapping ');
+  { No footer for this test }
+  footerText := '';
+
+  ClearBox(screen, box, color);
+  DrawBox(screen, box, btSingle, color, nil, TestHeader, TestFooter);
 
   { Write long text that will wrap }
   box.Row := 15;
@@ -173,12 +218,18 @@ begin
   color.FG := 15;  { White }
   color.BG := 4;   { Blue }
 
-  ClearBox(screen, box, color);
-  DrawBox(screen, box, btSingle, color, nil);
+  { Setup header }
+  headerText := ' Offset Testing ';
+  headerColor.FG := 14;  { Yellow }
+  headerColor.BG := 4;   { Blue }
+  headerAlign := aCenter;
+  headerOffset := 0;
 
-  { Write header }
-  color.FG := 14;  { Yellow }
-  WriteHeader(screen, box, color, aCenter, 0, 0, ' Offset Testing ');
+  { No footer for this test }
+  footerText := '';
+
+  ClearBox(screen, box, color);
+  DrawBox(screen, box, btSingle, color, nil, TestHeader, TestFooter);
 
   { Test various offsets - create a grid of text }
   color.FG := 11;  { Bright Cyan }
@@ -222,8 +273,8 @@ begin
   ClearScreen(Output);
   CursorPosition(Output, 1, 1);
 
-  { Test 7: Return values }
-  WriteLn('Test 7: Testing return values (characters displayed)');
+  { Test 7: Header and footer with different alignments }
+  WriteLn('Test 7: Testing header/footer alignment and offset');
   WriteLn;
 
   box.Row := 3;
@@ -233,22 +284,30 @@ begin
   color.FG := 15;
   color.BG := 4;
 
+  { Setup left-aligned header with offset }
+  headerText := ' Left Header ';
+  headerColor.FG := 14;  { Yellow }
+  headerColor.BG := 4;   { Blue }
+  headerAlign := aLeft;
+  headerOffset := 2;
+
+  { Setup right-aligned footer with offset }
+  footerText := ' Right Footer ';
+  footerColor.FG := 13;  { Bright Magenta }
+  footerColor.BG := 4;   { Blue }
+  footerAlign := aRight;
+  footerOffset := 2;
+
   ClearBox(screen, box, color);
-  DrawBox(screen, box, btSingle, color, nil);
+  DrawBox(screen, box, btSingle, color, nil, TestHeader, TestFooter);
 
-  color.FG := 14;
-  WriteLn('Header returned: ', WriteHeader(screen, box, color, aCenter, 0, 0, ' Return Value Test '));
-
+  { Write some content }
   color.FG := 11;
-  box.Row := 4;
+  box.Row := 6;
   box.Column := 6;
   box.Width := 48;
-  box.Height := 6;
-  WriteLn('WriteText returned: ', WriteText(screen, box, color, aLeft, 0, 0, 'This text will wrap and we will see how many characters were displayed.'));
-
-  box.Row := 3;
-  color.FG := 13;
-  WriteLn('Footer returned: ', WriteFooter(screen, box, color, aCenter, 0, 0, ' End '));
+  box.Height := 3;
+  WriteText(screen, box, color, aCenter, 0, 0, 'Header is left-aligned with offset=2, Footer is right-aligned with offset=2');
 
   { Test trailing space counting }
   WriteLn;

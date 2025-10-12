@@ -54,15 +54,13 @@ The `TBox` type keeps track of the size and location of a square box.
 
 - ClearBox(TScreen, TBox, TColor)
   - Clear the screen within the given box
-- DrawBox(TScreen, TBox, TBorderType, TColor, TBoxContentCallback)
-  - Draw a border around the given box with optional content via callback
-  - Pass `nil` for the callback parameter to draw an empty box
+- DrawBox(TScreen, TBox, TBorderType, TColor, TBoxContentCallback, TBoxBorderCallback, TBoxBorderCallback)
+  - Draw a border around the given box with optional content, header, and footer via callbacks
+  - Pass `nil` for the contentCallback parameter to draw an empty box
+  - Pass `nil` for headerCallback to skip header text on top border
+  - Pass `nil` for footerCallback to skip footer text on bottom border
 - WriteText(TScreen, TBox, TColor, TAlignment, OffsetR, OffsetC: TInt, Str255): TInt
   - Writes text into a box, returns number of characters displayed
-- WriteHeader(TScreen, TBox, TColor, TAlignment, OffsetR, OffsetC: TInt, Str255): TInt
-  - Writes text on the box's first row, returns number of characters displayed
-- WriteFooter(TScreen, TBox, TColor, TAlignment, OffsetR, OffsetC: TInt, Str255): TInt
-  - Writes text on the box's last row, returns number of characters displayed
 
 ### TBoxContentCallback
 
@@ -103,7 +101,55 @@ begin
 end;
 
 { Draw a box with line numbers }
-DrawBox(screen, myBox, btSingle, myColor, ShowLineNumber);
+DrawBox(screen, myBox, btSingle, myColor, ShowLineNumber, nil, nil);
+```
+
+### TBoxBorderCallback
+
+The `TBoxBorderCallback` is a function type used by `DrawBox` to provide text to display on the top or bottom borders.
+
+**Type Definition:**
+
+```pascal
+TBoxBorderCallback = function(var text: Str255; var color: TColor; var alignment: TAlignment; var offset: TInt): Boolean;
+```
+
+**Parameters:**
+
+- `text`: Output parameter - the text to display on the border
+- `color`: Output parameter - the color to use for the text
+- `alignment`: Output parameter - the alignment for the text (aLeft, aCenter, or aRight)
+- `offset`: Output parameter - offset from left edge (if left-aligned) or right edge (if right-aligned), ignored if centered
+
+**Return Value:**
+
+- `True` if text should be displayed on the border
+- `False` if no text should be displayed
+
+**Notes:**
+
+- The text is overlaid on top of the border line, surrounded by spaces
+- Text longer than the available width (box width - 2) will be truncated
+- For left alignment, offset is from the left edge of the box
+- For right alignment, offset is from the right edge of the box
+- For center alignment, offset is ignored and text is centered
+
+**Example Usage:**
+
+```pascal
+{ Callback function to display a title on the top border }
+function ShowTitle(var text: Str255; var color: TColor; var alignment: TAlignment; var offset: TInt): Boolean;
+begin
+  text := 'My Title';
+  color.FG := clWhite;
+  color.BG := clBlue;
+  alignment := aCenter;
+  offset := 0;
+  ShowTitle := True;
+end;
+
+{ Draw a box with a title on the top border }
+DrawBox(screen, myBox, btSingle, myColor, nil, ShowTitle, nil);
 ```
 
 ### ClearBox
@@ -266,91 +312,4 @@ UTF-8:
 
 ### WriteText
 
-Algorithm:
-
-```pascal
-Row := Box.Row;
-Column := Box.Column;
-Height := Min(Box.Height, Screen.Height - Row + 1);
-Width := Min(Box.Width, Screen.Width - Column + 1);
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            Output := Screen.Output;
-TextLength := Length(Text);
-
-{ Set color }
-SetColor(Output, Color.FG, Color.BG);
-
-{ Initialize for wrapping }
-CurrentRow := Row + OffsetR;
-TextPos := 1;
-Remaining := TextLength;
-
-{ Write text with wrapping }
-While (Remaining > 0) And (CurrentRow < Row + Height) Do
-Begin
-    { Calculate how much text fits on this line }
-    LineLength := Min(Remaining, Width);
-
-    { Try to break at whitespace if not the last line }
-    If (LineLength < Remaining) And (LineLength > 0) Then
-    Begin
-        { Look for the last space in this segment }
-        LastSpace := 0;
-        For i := LineLength DownTo 1 Do
-        Begin
-            If Text[TextPos + i - 1] = ' ' Then
-            Begin
-                LastSpace := i;
-                Break;
-            End;
-        End;
-
-        { If we found a space, break there }
-        If LastSpace > 0 Then
-            LineLength := LastSpace;
-    End;
-
-    LineText := Copy(Text, TextPos, LineLength);
-
-    { Calculate starting column based on alignment }
-    Case Alignment of
-        aLeft: StartColumn := Column + OffsetC;
-        aCenter: StartColumn := Column + ((Width - LineLength) div 2) + OffsetC;
-        aRight: StartColumn := Column + (Width - LineLength) + OffsetC;
-    End;
-
-    { Move cursor and write this line of text }
-    CursorPosition(Output, CurrentRow, StartColumn);
-    Write(Output, LineText);
-
-    { Move to next line }
-    TextPos := TextPos + LineLength;
-    Remaining := Remaining - LineLength;
-    CurrentRow := CurrentRow + 1;
-End;
-```
-
-## WriteHeader
-
-Algorithm:
-
-```pascal
-var HeaderBox: Box;
-HeaderBox.Row := Box.Row;
-HeaderBox.Column := Box.Column;
-HeaderBox.Height := 1;
-Headerbox.Width := Box.Width;
-WriteText(Screen, HeaderBox, Color, Alignment, OffsetR, OffsetC, Text)
-```
-
-## WriteFooter
-
-Algorithm:
-
-```pascal
-var FooterBox: Box;
-FooterBox.Row := Box.Row + Box.Height - 1;
-FooterBox.Column := Box.Column;
-FooterBox.Height := 1;
-FooterBox.Width := Box.Width;
-WriteText(Screen, FooterBox, Color, Alignment, OffsetR, OffsetC, Text)
-```
+The `WriteText` function writes text within a box with automatic word wrapping and alignment support. It handles text that exceeds the box width by intelligently breaking at whitespace boundaries when possible, avoiding mid-word breaks. The text is positioned according to the specified alignment (left, center, or right) and can be offset from the box edges using the `offsetR` and `offsetC` parameters. The function respects the box boundaries, stopping when it reaches the bottom edge, and returns the total number of characters that were successfully displayed. Color is applied to the text using the provided `TColor` parameter.

@@ -84,6 +84,12 @@ type
   { Returns: True if content provided, False if row should be empty }
   TBoxContentCallback = function(row: TInt; var text: Str255; var alignment: TAlignment): Boolean;
 
+  { TBoxBorderCallback - Callback function for header/footer on borders }
+  { Parameters: var text, var color, var alignment, var offset }
+  { offset is from left edge if left-aligned, right edge if right-aligned, ignored if centered }
+  { Returns: True if text should be displayed, False otherwise }
+  TBoxBorderCallback = function(var text: Str255; var color: TColor; var alignment: TAlignment; var offset: TInt): Boolean;
+
 { Core Drawing Procedures }
 
 { ClearBox clears the screen within the given box }
@@ -91,16 +97,12 @@ procedure ClearBox(var screen: TScreen; box: TBox; color: TColor);
 
 { DrawBox draws a border around the given box with optional content }
 { contentCallback can be nil for empty box, or provide content for each row }
-procedure DrawBox(var screen: TScreen; box: TBox; borderType: TBorderType; color: TColor; contentCallback: TBoxContentCallback);
+{ headerCallback can be nil, or provide text to overlay on top border }
+{ footerCallback can be nil, or provide text to overlay on bottom border }
+procedure DrawBox(var screen: TScreen; box: TBox; borderType: TBorderType; color: TColor; contentCallback: TBoxContentCallback; headerCallback: TBoxBorderCallback; footerCallback: TBoxBorderCallback);
 
 { WriteText writes text into a box and returns the number of characters displayed }
 function WriteText(var screen: TScreen; box: TBox; color: TColor; alignment: TAlignment; offsetR, offsetC: TInt; text: Str255): TInt;
-
-{ WriteHeader writes text on the box's first row and returns the number of characters displayed }
-function WriteHeader(var screen: TScreen; box: TBox; color: TColor; alignment: TAlignment; offsetR, offsetC: TInt; text: Str255): TInt;
-
-{ WriteFooter writes text on the box's last row and returns the number of characters displayed }
-function WriteFooter(var screen: TScreen; box: TBox; color: TColor; alignment: TAlignment; offsetR, offsetC: TInt; text: Str255): TInt;
 
 { Box Drawing Helper Functions }
 
@@ -245,7 +247,7 @@ begin
 end;
 
 { DrawBox implementation }
-procedure DrawBox(var screen: TScreen; box: TBox; borderType: TBorderType; color: TColor; contentCallback: TBoxContentCallback);
+procedure DrawBox(var screen: TScreen; box: TBox; borderType: TBorderType; color: TColor; contentCallback: TBoxContentCallback; headerCallback: TBoxBorderCallback; footerCallback: TBoxBorderCallback);
 var
   row, column, height, width, contentWidth: TInt;
   output: PText;
@@ -254,6 +256,11 @@ var
   text: Str255;
   alignment: TAlignment;
   hasContent: Boolean;
+  borderText: Str255;
+  borderColor: TColor;
+  borderAlignment: TAlignment;
+  borderOffset: TInt;
+  borderColumn: TInt;
 begin
   row := box.Row;
   column := box.Column;
@@ -291,6 +298,40 @@ begin
 
   { Disable box drawing for content }
   StopBoxDrawing(screen);
+
+  { Draw header text on top border if callback provided }
+  if screen.IsANSI and Assigned(headerCallback) then
+  begin
+    if headerCallback(borderText, borderColor, borderAlignment, borderOffset) then
+    begin
+      { Trim text to fit within border }
+      textLen := Length(borderText);
+      if textLen > width - 2 then
+      begin
+        borderText := Copy(borderText, 1, width - 2);
+        textLen := width - 2;
+      end;
+
+      { Calculate position based on alignment and offset }
+      case borderAlignment of
+        aLeft:
+          borderColumn := column + 1 + borderOffset;
+        aRight:
+          borderColumn := column + width - textLen - borderOffset;
+        aCenter:
+          borderColumn := column + ((width - textLen) div 2);
+      end;
+
+      { Position cursor and write header text }
+      if screen.IsColor then
+        SetColor(output^, borderColor.FG, borderColor.BG);
+      CursorPosition(output^, row, borderColumn);
+      Write(output^, ' ', borderText, ' ');
+      { Restore box color }
+      if screen.IsColor then
+        SetColor(output^, color.FG, color.BG);
+    end;
+  end;
 
   { Draw content lines }
   for i := 1 to height - 2 do
@@ -386,6 +427,40 @@ begin
 
   { Disable VT100 alternate character set if needed }
   StopBoxDrawing(screen);
+
+  { Draw footer text on bottom border if callback provided }
+  if screen.IsANSI and Assigned(footerCallback) then
+  begin
+    if footerCallback(borderText, borderColor, borderAlignment, borderOffset) then
+    begin
+      { Trim text to fit within border }
+      textLen := Length(borderText);
+      if textLen > width - 2 then
+      begin
+        borderText := Copy(borderText, 1, width - 2);
+        textLen := width - 2;
+      end;
+
+      { Calculate position based on alignment and offset }
+      case borderAlignment of
+        aLeft:
+          borderColumn := column + 1 + borderOffset;
+        aRight:
+          borderColumn := column + width - textLen - borderOffset - 1;
+        aCenter:
+          borderColumn := column + ((width - textLen) div 2);
+      end;
+
+      { Position cursor and write footer text }
+      if screen.IsColor then
+        SetColor(output^, borderColor.FG, borderColor.BG);
+      CursorPosition(output^, row + height - 1, borderColumn);
+      Write(output^, ' ', borderText, ' ');
+      { Restore box color }
+      if screen.IsColor then
+        SetColor(output^, color.FG, color.BG);
+    end;
+  end;
 end;
 
 { WriteText implementation }
@@ -470,30 +545,6 @@ begin
   end;
 
   WriteText := charsDisplayed;
-end;
-
-{ WriteHeader implementation }
-function WriteHeader(var screen: TScreen; box: TBox; color: TColor; alignment: TAlignment; offsetR, offsetC: TInt; text: Str255): TInt;
-var
-  headerBox: TBox;
-begin
-  headerBox.Row := box.Row;
-  headerBox.Column := box.Column;
-  headerBox.Height := 1;
-  headerBox.Width := box.Width;
-  WriteHeader := WriteText(screen, headerBox, color, alignment, offsetR, offsetC, text);
-end;
-
-{ WriteFooter implementation }
-function WriteFooter(var screen: TScreen; box: TBox; color: TColor; alignment: TAlignment; offsetR, offsetC: TInt; text: Str255): TInt;
-var
-  footerBox: TBox;
-begin
-  footerBox.Row := box.Row + box.Height - 1;
-  footerBox.Column := box.Column;
-  footerBox.Height := 1;
-  footerBox.Width := box.Width;
-  WriteFooter := WriteText(screen, footerBox, color, alignment, offsetR, offsetC, text);
 end;
 
 end.
