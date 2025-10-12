@@ -287,51 +287,65 @@ begin
   { Enable VT100 alternate character set if needed }
   EnableBoxDrawing(screen);
 
-  { Draw top line }
+  { Draw top line with optional header text }
   StartBoxDrawing(screen);
   Write(output^, boxChars.TopLeft);
-  for i := 1 to width - 2 do
-    Write(output^, boxChars.Horizontal);
+
+  { Check if we have header text to render }
+  hasContent := False;
+  if Assigned(headerCallback) then
+    hasContent := headerCallback(borderText, borderColor, borderAlignment, borderOffset);
+
+  if hasContent then
+  begin
+    { Trim text to fit within border (including spaces) }
+    textLen := Length(borderText);
+    if textLen > width - 4 then  { -4 for corners and spaces }
+    begin
+      borderText := Copy(borderText, 1, width - 4);
+      textLen := width - 4;
+    end;
+
+    { Calculate starting position for text based on alignment }
+    case borderAlignment of
+      aLeft:
+        borderColumn := 1 + borderOffset;
+      aRight:
+        borderColumn := (width - 2) - textLen - 2 - borderOffset;  { -2 for spaces around text }
+      aCenter:
+        borderColumn := ((width - 2 - textLen - 2) div 2) + 1;  { -2 for spaces }
+    end;
+
+    { Draw horizontal line before text }
+    for i := 1 to borderColumn - 1 do
+      Write(output^, boxChars.Horizontal);
+
+    { Switch to normal text for header }
+    StopBoxDrawing(screen);
+    if screen.IsColor then
+      SetColor(output^, borderColor.FG, borderColor.BG);
+    Write(output^, ' ', borderText, ' ');
+    if screen.IsColor then
+      SetColor(output^, color.FG, color.BG);
+
+    { Switch back to box drawing and fill rest of line }
+    StartBoxDrawing(screen);
+    for i := borderColumn + textLen + 2 to width - 2 do
+      Write(output^, boxChars.Horizontal);
+  end
+  else
+  begin
+    { No header text, just draw horizontal line }
+    for i := 1 to width - 2 do
+      Write(output^, boxChars.Horizontal);
+  end;
+
   Write(output^, boxChars.TopRight);
   if not screen.IsANSI then
     WriteLn(output^);
 
   { Disable box drawing for content }
   StopBoxDrawing(screen);
-
-  { Draw header text on top border if callback provided }
-  if screen.IsANSI and Assigned(headerCallback) then
-  begin
-    if headerCallback(borderText, borderColor, borderAlignment, borderOffset) then
-    begin
-      { Trim text to fit within border }
-      textLen := Length(borderText);
-      if textLen > width - 2 then
-      begin
-        borderText := Copy(borderText, 1, width - 2);
-        textLen := width - 2;
-      end;
-
-      { Calculate position based on alignment and offset }
-      case borderAlignment of
-        aLeft:
-          borderColumn := column + 1 + borderOffset;
-        aRight:
-          borderColumn := column + width - textLen - borderOffset;
-        aCenter:
-          borderColumn := column + ((width - textLen) div 2);
-      end;
-
-      { Position cursor and write header text }
-      if screen.IsColor then
-        SetColor(output^, borderColor.FG, borderColor.BG);
-      CursorPosition(output^, row, borderColumn);
-      Write(output^, ' ', borderText, ' ');
-      { Restore box color }
-      if screen.IsColor then
-        SetColor(output^, color.FG, color.BG);
-    end;
-  end;
 
   { Draw content lines }
   for i := 1 to height - 2 do
@@ -414,53 +428,65 @@ begin
   if screen.IsANSI then
     CursorPosition(output^, row + height - 1, column);
 
-  { Enable box drawing for bottom line }
+  { Draw bottom line with optional footer text }
   StartBoxDrawing(screen);
-
-  { Draw bottom line }
   Write(output^, boxChars.BottomLeft);
-  for i := 1 to width - 2 do
-    Write(output^, boxChars.Horizontal);
+
+  { Check if we have footer text to render }
+  hasContent := False;
+  if Assigned(footerCallback) then
+    hasContent := footerCallback(borderText, borderColor, borderAlignment, borderOffset);
+
+  if hasContent then
+  begin
+    { Trim text to fit within border (including spaces) }
+    textLen := Length(borderText);
+    if textLen > width - 4 then  { -4 for corners and spaces }
+    begin
+      borderText := Copy(borderText, 1, width - 4);
+      textLen := width - 4;
+    end;
+
+    { Calculate starting position for text based on alignment }
+    case borderAlignment of
+      aLeft:
+        borderColumn := 1 + borderOffset;
+      aRight:
+        borderColumn := (width - 2) - textLen - 2 - borderOffset;  { -2 for spaces around text }
+      aCenter:
+        borderColumn := ((width - 2 - textLen - 2) div 2) + 1;  { -2 for spaces }
+    end;
+
+    { Draw horizontal line before text }
+    for i := 1 to borderColumn - 1 do
+      Write(output^, boxChars.Horizontal);
+
+    { Switch to normal text for footer }
+    StopBoxDrawing(screen);
+    if screen.IsColor then
+      SetColor(output^, borderColor.FG, borderColor.BG);
+    Write(output^, ' ', borderText, ' ');
+    if screen.IsColor then
+      SetColor(output^, color.FG, color.BG);
+
+    { Switch back to box drawing and fill rest of line }
+    StartBoxDrawing(screen);
+    for i := borderColumn + textLen + 2 to width - 2 do
+      Write(output^, boxChars.Horizontal);
+  end
+  else
+  begin
+    { No footer text, just draw horizontal line }
+    for i := 1 to width - 2 do
+      Write(output^, boxChars.Horizontal);
+  end;
+
   Write(output^, boxChars.BottomRight);
   if not screen.IsANSI then
     WriteLn(output^);
 
   { Disable VT100 alternate character set if needed }
   StopBoxDrawing(screen);
-
-  { Draw footer text on bottom border if callback provided }
-  if screen.IsANSI and Assigned(footerCallback) then
-  begin
-    if footerCallback(borderText, borderColor, borderAlignment, borderOffset) then
-    begin
-      { Trim text to fit within border }
-      textLen := Length(borderText);
-      if textLen > width - 2 then
-      begin
-        borderText := Copy(borderText, 1, width - 2);
-        textLen := width - 2;
-      end;
-
-      { Calculate position based on alignment and offset }
-      case borderAlignment of
-        aLeft:
-          borderColumn := column + 1 + borderOffset;
-        aRight:
-          borderColumn := column + width - textLen - borderOffset - 1;
-        aCenter:
-          borderColumn := column + ((width - textLen) div 2);
-      end;
-
-      { Position cursor and write footer text }
-      if screen.IsColor then
-        SetColor(output^, borderColor.FG, borderColor.BG);
-      CursorPosition(output^, row + height - 1, borderColumn);
-      Write(output^, ' ', borderText, ' ');
-      { Restore box color }
-      if screen.IsColor then
-        SetColor(output^, color.FG, color.BG);
-    end;
-  end;
 end;
 
 { WriteText implementation }
