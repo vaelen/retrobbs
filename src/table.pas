@@ -115,6 +115,19 @@ procedure RefreshTable(var table: TTable);
 function GetSelectedRecordID(var table: TTable): TLong;
 function SetSelectedRecordID(var table: TTable; recordID: TLong): Boolean;
 
+{ Internal Helper Functions (exposed for testing) }
+function GetMaxColumnPriority(var table: TTable): TInt;
+procedure DetermineVisibleColumnsByPriority(
+  var table: TTable;
+  availWidth: TInt;
+  maxPriority: TInt
+);
+function CountFlexibleColumns(var table: TTable): TInt;
+function CalculateTotalMinWidth(var table: TTable): TInt;
+procedure AssignMinimumWidths(var table: TTable);
+procedure DistributeWidthToFlexibleColumns(var table: TTable; extraSpace: TInt);
+procedure DistributeWidthProportionally(var table: TTable; extraSpace: TInt; totalMinWidth: TInt);
+
 implementation
 
 uses
@@ -155,42 +168,15 @@ begin
   CalculateVisibleRows := rows;
 end;
 
-procedure CalculateColumnWidths(var table: TTable);
+function GetMaxColumnPriority(var table: TTable): TInt;
 {
-  Calculate column widths based on terminal width and priority-based hiding.
-
-  Step 1: Determine Visible Columns (Responsive Hiding)
-  - Add all Priority 0 columns (always show)
-  - For each priority level (1, 2, 3, etc.):
-    - Try adding all columns at this priority
-    - If they fit: add to VisibleColumns, continue
-    - If they don't fit: stop
-
-  Step 2: Calculate Widths for Visible Columns
-  - Distribute available width among visible columns
-  - Respect MinWidth and MaxWidth constraints
+  Find the maximum priority value among all columns.
+  Returns 0 if there are no columns.
 }
 var
-  availWidth, totalMinWidth, extraSpace, flexCount: TInt;
-  priority, currentPriority, i, j, colIdx, visIdx: TInt;
+  i, maxPriority: TInt;
   col: PTableColumn;
-  tempWidthNeeded, widthPerFlex, proportionalShare: TInt;
-  maxPriority: TInt;
-  tryColumns: TArrayList;
-  canFit: Boolean;
 begin
-  { Clear previous visible columns }
-  ClearArrayList(table.VisibleColumns);
-
-  if table.Columns.Count = 0 then
-    Exit;
-
-  { Calculate available width }
-  availWidth := table.Box.Width - 2; { Subtract borders }
-
-  { Step 1: Determine Visible Columns based on Priority }
-
-  { Find maximum priority }
   maxPriority := 0;
   for i := 0 to table.Columns.Count - 1 do
   begin
@@ -198,8 +184,182 @@ begin
     if col^.Priority > maxPriority then
       maxPriority := col^.Priority;
   end;
+  GetMaxColumnPriority := maxPriority;
+end;
 
-  { Add columns by priority level }
+function CountFlexibleColumns(var table: TTable): TInt;
+{
+  Count the number of flexible columns (MaxWidth = 0) in the visible columns list.
+  A flexible column is one that can grow to fill available space.
+}
+var
+  i, colIdx, flexCount: TInt;
+  col: PTableColumn;
+begin
+  flexCount := 0;
+  for i := 0 to table.VisibleColumns.Count - 1 do
+  begin
+    colIdx := TInt(PtrUInt(GetArrayListItem(table.VisibleColumns, i)));
+    col := PTableColumn(GetArrayListItem(table.Columns, colIdx));
+    if col^.MaxWidth = 0 then
+      Inc(flexCount);
+  end;
+  CountFlexibleColumns := flexCount;
+end;
+
+function CalculateTotalMinWidth(var table: TTable): TInt;
+{
+  Calculate the total minimum width needed for all visible columns.
+  This is the sum of the MinWidth values of all visible columns.
+}
+var
+  i, colIdx, totalMinWidth: TInt;
+  col: PTableColumn;
+begin
+  totalMinWidth := 0;
+  for i := 0 to table.VisibleColumns.Count - 1 do
+  begin
+    colIdx := TInt(PtrUInt(GetArrayListItem(table.VisibleColumns, i)));
+    col := PTableColumn(GetArrayListItem(table.Columns, colIdx));
+    totalMinWidth := totalMinWidth + col^.MinWidth;
+  end;
+  CalculateTotalMinWidth := totalMinWidth;
+end;
+
+procedure AssignMinimumWidths(var table: TTable);
+{
+  Assign minimum widths to all visible columns.
+  This is used when there's not enough space to give columns any extra width.
+  Sets table.ColumnWidths[i] to the MinWidth of each visible column.
+}
+var
+  i, colIdx: TInt;
+  col: PTableColumn;
+begin
+  for i := 0 to table.VisibleColumns.Count - 1 do
+  begin
+    colIdx := TInt(PtrUInt(GetArrayListItem(table.VisibleColumns, i)));
+    col := PTableColumn(GetArrayListItem(table.Columns, colIdx));
+    table.ColumnWidths[i] := col^.MinWidth;
+  end;
+end;
+
+procedure DistributeWidthToFlexibleColumns(var table: TTable; extraSpace: TInt);
+{
+  Distribute extra space among flexible columns (MaxWidth = 0).
+  Fixed columns (MaxWidth > 0) get their MinWidth.
+  Flexible columns share the extra space evenly, with any remainder
+  distributed one pixel at a time to the first flexible columns.
+}
+var
+  i, colIdx, flexCount, widthPerFlex, remainder: TInt;
+  col: PTableColumn;
+begin
+  flexCount := CountFlexibleColumns(table);
+
+  if flexCount = 0 then
+  begin
+    { No flexible columns - all get minimum width }
+    AssignMinimumWidths(table);
+    Exit;
+  end;
+
+  { Calculate width per flexible column and remainder }
+  widthPerFlex := extraSpace div flexCount;
+  remainder := extraSpace mod flexCount;
+
+  { Distribute widths }
+  for i := 0 to table.VisibleColumns.Count - 1 do
+  begin
+    colIdx := TInt(PtrUInt(GetArrayListItem(table.VisibleColumns, i)));
+    col := PTableColumn(GetArrayListItem(table.Columns, colIdx));
+
+    if col^.MaxWidth = 0 then
+    begin
+      { Flexible column - gets MinWidth + share of extra space }
+      table.ColumnWidths[i] := col^.MinWidth + widthPerFlex;
+      { Add 1 extra to first remainder flexible columns }
+      if remainder > 0 then
+      begin
+        Inc(table.ColumnWidths[i]);
+        Dec(remainder);
+      end;
+    end
+    else
+    begin
+      { Fixed column - gets MinWidth only }
+      table.ColumnWidths[i] := col^.MinWidth;
+    end;
+  end;
+end;
+
+procedure DistributeWidthProportionally(var table: TTable; extraSpace: TInt; totalMinWidth: TInt);
+{
+  Distribute extra space proportionally based on MinWidth when there are no flexible columns.
+  Each column gets extra space proportional to its MinWidth relative to the total.
+  Respects MaxWidth constraints - columns at MaxWidth don't get more space.
+}
+var
+  i, colIdx, proportionalShare, totalDistributed: TInt;
+  col: PTableColumn;
+begin
+  totalDistributed := 0;
+
+  for i := 0 to table.VisibleColumns.Count - 1 do
+  begin
+    colIdx := TInt(PtrUInt(GetArrayListItem(table.VisibleColumns, i)));
+    col := PTableColumn(GetArrayListItem(table.Columns, colIdx));
+
+    { Calculate proportional share based on MinWidth }
+    proportionalShare := (col^.MinWidth * extraSpace) div totalMinWidth;
+    table.ColumnWidths[i] := col^.MinWidth + proportionalShare;
+    totalDistributed := totalDistributed + proportionalShare;
+
+    { Respect MaxWidth if set }
+    if (col^.MaxWidth > 0) and (table.ColumnWidths[i] > col^.MaxWidth) then
+    begin
+      totalDistributed := totalDistributed - (table.ColumnWidths[i] - col^.MaxWidth);
+      table.ColumnWidths[i] := col^.MaxWidth;
+    end;
+  end;
+
+  { Add any remaining space to last column if possible }
+  if (extraSpace > totalDistributed) and (table.VisibleColumns.Count > 0) then
+  begin
+    i := table.VisibleColumns.Count - 1;
+    colIdx := TInt(PtrUInt(GetArrayListItem(table.VisibleColumns, i)));
+    col := PTableColumn(GetArrayListItem(table.Columns, colIdx));
+
+    { Add remainder if under MaxWidth }
+    if (col^.MaxWidth = 0) or (table.ColumnWidths[i] + (extraSpace - totalDistributed) <= col^.MaxWidth) then
+      table.ColumnWidths[i] := table.ColumnWidths[i] + (extraSpace - totalDistributed);
+  end;
+end;
+
+procedure DetermineVisibleColumnsByPriority(
+  var table: TTable;
+  availWidth: TInt;
+  maxPriority: TInt
+);
+{
+  Determine which columns should be visible based on priority and available width.
+
+  Algorithm:
+  - Start with priority 0 columns (always show)
+  - For each priority level (1, 2, 3, etc.):
+    - Try adding all columns at this priority
+    - If they fit: accept them, continue to next priority
+    - If they don't fit: stop (keep previous priority level)
+
+  Updates table.VisibleColumns with indices of columns that should be displayed.
+}
+var
+  currentPriority, i, colIdx: TInt;
+  col: PTableColumn;
+  tempWidthNeeded: TInt;
+  tryColumns: TArrayList;
+  canFit: Boolean;
+begin
   currentPriority := 0;
   while currentPriority <= maxPriority do
   begin
@@ -249,6 +409,44 @@ begin
 
     Inc(currentPriority);
   end;
+end;
+
+procedure CalculateColumnWidths(var table: TTable);
+{
+  Calculate column widths based on terminal width and priority-based hiding.
+
+  Step 1: Determine Visible Columns (Responsive Hiding)
+  - Add all Priority 0 columns (always show)
+  - For each priority level (1, 2, 3, etc.):
+    - Try adding all columns at this priority
+    - If they fit: add to VisibleColumns, continue
+    - If they don't fit: stop
+
+  Step 2: Calculate Widths for Visible Columns
+  - Distribute available width among visible columns
+  - Respect MinWidth and MaxWidth constraints
+}
+var
+  availWidth, totalMinWidth, extraSpace, flexCount: TInt;
+  maxPriority: TInt;
+  effectiveWidth: TInt;
+begin
+  { Clear previous visible columns }
+  ClearArrayList(table.VisibleColumns);
+
+  if table.Columns.Count = 0 then
+    Exit;
+
+  { Calculate effective box width, accounting for terminal wrapping }
+  { DEBUG: Always reduce by 2 to test }
+  effectiveWidth := table.Box.Width - 2;
+
+  { Calculate available width }
+  availWidth := effectiveWidth - 2; { Subtract borders }
+
+  { Step 1: Determine Visible Columns based on Priority }
+  maxPriority := GetMaxColumnPriority(table);
+  DetermineVisibleColumnsByPriority(table, availWidth, maxPriority);
 
   { Step 2: Calculate Widths for Visible Columns }
 
@@ -256,26 +454,15 @@ begin
     Exit;
 
   { Recalculate available width with separators }
-  availWidth := table.Box.Width - 2 - (table.VisibleColumns.Count - 1);
+  availWidth := effectiveWidth - 2 - (table.VisibleColumns.Count - 1);
 
   { Calculate total minimum width }
-  totalMinWidth := 0;
-  for i := 0 to table.VisibleColumns.Count - 1 do
-  begin
-    colIdx := TInt(PtrUInt(GetArrayListItem(table.VisibleColumns, i)));
-    col := PTableColumn(GetArrayListItem(table.Columns, colIdx));
-    totalMinWidth := totalMinWidth + col^.MinWidth;
-  end;
+  totalMinWidth := CalculateTotalMinWidth(table);
 
   if availWidth <= totalMinWidth then
   begin
     { Not enough space - use minimum widths }
-    for i := 0 to table.VisibleColumns.Count - 1 do
-    begin
-      colIdx := TInt(PtrUInt(GetArrayListItem(table.VisibleColumns, i)));
-      col := PTableColumn(GetArrayListItem(table.Columns, colIdx));
-      table.ColumnWidths[i] := col^.MinWidth;
-    end;
+    AssignMinimumWidths(table);
   end
   else
   begin
@@ -283,72 +470,17 @@ begin
     extraSpace := availWidth - totalMinWidth;
 
     { Count flexible columns (MaxWidth = 0) }
-    flexCount := 0;
-    for i := 0 to table.VisibleColumns.Count - 1 do
-    begin
-      colIdx := TInt(PtrUInt(GetArrayListItem(table.VisibleColumns, i)));
-      col := PTableColumn(GetArrayListItem(table.Columns, colIdx));
-      if col^.MaxWidth = 0 then
-        Inc(flexCount);
-    end;
+    flexCount := CountFlexibleColumns(table);
 
     if flexCount > 0 then
     begin
       { Distribute extra space among flexible columns }
-      widthPerFlex := extraSpace div flexCount;
-      j := extraSpace mod flexCount;  { Remainder to distribute }
-
-      for i := 0 to table.VisibleColumns.Count - 1 do
-      begin
-        colIdx := TInt(PtrUInt(GetArrayListItem(table.VisibleColumns, i)));
-        col := PTableColumn(GetArrayListItem(table.Columns, colIdx));
-
-        if col^.MaxWidth = 0 then
-        begin
-          table.ColumnWidths[i] := col^.MinWidth + widthPerFlex;
-          { Add 1 extra to first j flexible columns to use up remainder }
-          if j > 0 then
-          begin
-            Inc(table.ColumnWidths[i]);
-            Dec(j);
-          end;
-        end
-        else
-          table.ColumnWidths[i] := col^.MinWidth;
-      end;
+      DistributeWidthToFlexibleColumns(table, extraSpace);
     end
     else
     begin
       { No flexible columns - distribute proportionally }
-      j := 0;  { Track total distributed }
-      for i := 0 to table.VisibleColumns.Count - 1 do
-      begin
-        colIdx := TInt(PtrUInt(GetArrayListItem(table.VisibleColumns, i)));
-        col := PTableColumn(GetArrayListItem(table.Columns, colIdx));
-
-        proportionalShare := (col^.MinWidth * extraSpace) div totalMinWidth;
-        table.ColumnWidths[i] := col^.MinWidth + proportionalShare;
-        j := j + proportionalShare;
-
-        { Respect MaxWidth if set }
-        if (col^.MaxWidth > 0) and (table.ColumnWidths[i] > col^.MaxWidth) then
-        begin
-          j := j - (table.ColumnWidths[i] - col^.MaxWidth);
-          table.ColumnWidths[i] := col^.MaxWidth;
-        end;
-      end;
-
-      { Add any remaining space to last column }
-      if (extraSpace > j) and (table.VisibleColumns.Count > 0) then
-      begin
-        i := table.VisibleColumns.Count - 1;
-        colIdx := TInt(PtrUInt(GetArrayListItem(table.VisibleColumns, i)));
-        col := PTableColumn(GetArrayListItem(table.Columns, colIdx));
-
-        { Add remainder if under MaxWidth }
-        if (col^.MaxWidth = 0) or (table.ColumnWidths[i] + (extraSpace - j) <= col^.MaxWidth) then
-          table.ColumnWidths[i] := table.ColumnWidths[i] + (extraSpace - j);
-      end;
+      DistributeWidthProportionally(table, extraSpace, totalMinWidth);
     end;
   end;
 end;
@@ -809,7 +941,7 @@ begin
 
   { Get box drawing characters }
   chars := UI.GetBoxChars(table.Screen.ScreenType, table.BorderType);
-
+  
   { Clear screen and position cursor at top-left (only if ANSI supported) }
   if table.Screen.IsANSI then
   begin

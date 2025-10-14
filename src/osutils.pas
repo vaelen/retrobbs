@@ -91,6 +91,9 @@ begin
   { Check if output is connected to a TTY }
   isTTY := (isatty(1) <> 0);  { File descriptor 1 = stdout }
 
+  { DEBUG: Temporarily force ANSI support }
+  isTTY := True;
+
   if isTTY then
   begin
     { Connected to a terminal - use VT100 }

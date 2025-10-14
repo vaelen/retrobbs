@@ -265,7 +265,15 @@ begin
   row := box.Row;
   column := box.Column;
   height := Min(box.Height, screen.Height - row + 1);
+  { Ensure box doesn't extend past right edge of screen }
+  { If column is 1 and screen width is 80, max width is 80 (cols 1-80) }
+  { But we need to account for cursor wrapping, so limit to screen.Width - column + 1 }
   width := Min(box.Width, screen.Width - column + 1);
+
+  { Special case: If box would end exactly at screen edge, reduce by 1 to avoid wrap }
+  if (column + width - 1 = screen.Width) and (column + width - 1 > 1) then
+    width := width - 1;
+
   contentWidth := width - 2;  { Width available for content (excluding borders) }
   output := screen.Output;
 

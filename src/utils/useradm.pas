@@ -28,8 +28,6 @@ var
   { State }
   running: Boolean;
   totalUsers: TInt;
-  termWidth: TInt;
-  termHeight: TInt;
 
 { Helper function to format User ID as 6-digit string }
 function FormatUserID(id: TUserID): Str63;
@@ -106,34 +104,23 @@ begin
   FetchUserData := True;
 end;
 
-{ Initialize screen and terminal }
-procedure InitScreen;
-begin
-  { Use OSUtils to initialize screen in an OS-specific way }
-  OSUtils.InitializeScreen(screen, Output);
-
-  { Update terminal dimensions from screen }
-  termWidth := screen.Width;
-  termHeight := screen.Height;
-end;
-
 { Calculate box positions based on terminal size }
 procedure CalculateLayout;
 var
   tableHeight: TInt;
 begin
   { Calculate table box dimensions }
-  tableHeight := termHeight - STATUS_HEIGHT;
+  tableHeight := screen.Height - STATUS_HEIGHT;
 
   tableBox.Row := TABLE_TOP;
   tableBox.Column := TABLE_LEFT;
-  tableBox.Width := termWidth;
-  tableBox.Height := tableHeight;
+  tableBox.Width := screen.Width;
+  tableBox.Height := screen.Height;
 
   { Calculate status bar box dimensions }
   statusBox.Row := tableHeight + 1;
   statusBox.Column := TABLE_LEFT;
-  statusBox.Width := termWidth;
+  statusBox.Width := screen.Width;
   statusBox.Height := STATUS_HEIGHT;
 end;
 
@@ -196,7 +183,7 @@ begin
   running := True;
 
   { Initialize screen }
-  InitScreen;
+  OSUtils.InitializeScreen(screen, Output);
 
   { Calculate layout }
   CalculateLayout;
@@ -230,9 +217,9 @@ begin
   { Define table columns with responsive hiding priorities }
   AddTableColumn(userTable, 'ID', 6, 8, aLeft, 0);           { Always show }
   AddTableColumn(userTable, 'Name', 10, 15, aLeft, 0);       { Always show }
-  AddTableColumn(userTable, 'Full Name', 15, 25, aLeft, 2);  { Hide 2nd on narrow }
-  AddTableColumn(userTable, 'Email', 15, 30, aLeft, 1);      { Hide 3rd on narrow }
-  AddTableColumn(userTable, 'Location', 10, 20, aLeft, 3);   { Hide 1st on narrow }
+  AddTableColumn(userTable, 'Full Name', 15, 0, aLeft, 2);  { Hide 2nd on narrow }
+  AddTableColumn(userTable, 'Email', 15, 0, aLeft, 1);      { Hide 3rd on narrow }
+  AddTableColumn(userTable, 'Location', 10, 0, aLeft, 3);   { Hide 1st on narrow }
 
   { Set data source }
   SetTableDataSource(userTable, FetchUserData, totalUsers);
